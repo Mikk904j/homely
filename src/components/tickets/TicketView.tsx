@@ -1,4 +1,5 @@
 
+import React from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Ticket, Clock, AlertTriangle, CheckCircle2, User, MessageSquare } from "lucide-react";

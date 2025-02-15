@@ -1,6 +1,6 @@
 
 import { Card } from "@/components/ui/card";
-import { Activity, Package, Clock, AlertTriangle, TrendingUp, Users, FileText, CheckCircle2, BarChart3, Ticket } from "lucide-react";
+import { Activity, Package, Clock, AlertTriangle, TrendingUp, Users, FileText, CheckCircle2, BarChart3, Ticket, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export const DashboardView = () => {
