@@ -1,10 +1,15 @@
 
-import React from "react";
+import React, { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Ticket, Clock, AlertTriangle, CheckCircle2, User, MessageSquare } from "lucide-react";
+import { CreateTicketDialog } from "./CreateTicketDialog";
+import { TicketDetailsDialog } from "./TicketDetailsDialog";
 
 export const TicketView = () => {
+  const [selectedTicket, setSelectedTicket] = useState<any>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+
   const tickets = [
     {
       id: 1,
@@ -64,6 +69,11 @@ export const TicketView = () => {
     }
   };
 
+  const handleTicketClick = (ticket: any) => {
+    setSelectedTicket(ticket);
+    setDetailsOpen(true);
+  };
+
   return (
     <div className="space-y-8 animate-fade-in">
       <div className="flex justify-between items-center">
@@ -71,9 +81,7 @@ export const TicketView = () => {
           <h1 className="text-3xl font-bold">Tickets</h1>
           <p className="text-muted-foreground">Track and manage household maintenance requests</p>
         </div>
-        <Button className="animate-hover">
-          Create Ticket
-        </Button>
+        <CreateTicketDialog />
       </div>
 
       <div className="grid gap-4 md:grid-cols-4">
@@ -103,7 +111,8 @@ export const TicketView = () => {
         {tickets.map((ticket) => (
           <Card
             key={ticket.id}
-            className="p-6 hover:shadow-lg transition-all duration-200 animate-hover"
+            className="p-6 hover:shadow-lg transition-all duration-200 animate-hover cursor-pointer"
+            onClick={() => handleTicketClick(ticket)}
           >
             <div className="flex items-start justify-between">
               <div className="flex items-start space-x-4">
@@ -129,13 +138,18 @@ export const TicketView = () => {
                   </div>
                 </div>
               </div>
-              <Button variant="outline" size="sm">
-                View Details
-              </Button>
             </div>
           </Card>
         ))}
       </div>
+
+      {selectedTicket && (
+        <TicketDetailsDialog
+          ticket={selectedTicket}
+          open={detailsOpen}
+          onOpenChange={setDetailsOpen}
+        />
+      )}
     </div>
   );
 };
