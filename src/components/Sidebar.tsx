@@ -1,5 +1,5 @@
 
-import { Home, ShoppingCart, Calendar, Users, Settings, X } from "lucide-react";
+import { Home, ShoppingCart, Calendar, Users, Settings, X, Ticket } from "lucide-react";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
@@ -13,6 +13,7 @@ export const Sidebar = ({ open, onOpenChange }: SidebarProps) => {
     { icon: Home, label: "Dashboard", href: "/" },
     { icon: ShoppingCart, label: "Shopping", href: "/shopping" },
     { icon: Calendar, label: "Calendar", href: "/calendar" },
+    { icon: Ticket, label: "Tickets", href: "/tickets" },
     { icon: Users, label: "Members", href: "/members" },
     { icon: Settings, label: "Settings", href: "/settings" },
   ];

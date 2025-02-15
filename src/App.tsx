@@ -9,6 +9,7 @@ import Shopping from "./pages/Shopping";
 import Calendar from "./pages/Calendar";
 import Members from "./pages/Members";
 import Settings from "./pages/Settings";
+import Tickets from "./pages/Tickets";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -23,6 +24,7 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/shopping" element={<Shopping />} />
           <Route path="/calendar" element={<Calendar />} />
+          <Route path="/tickets" element={<Tickets />} />
           <Route path="/members" element={<Members />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="*" element={<NotFound />} />
