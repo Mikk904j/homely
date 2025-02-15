@@ -1,5 +1,6 @@
 
 import { Home, ShoppingCart, Calendar, Users, Settings, X } from "lucide-react";
+import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
 interface SidebarProps {
@@ -34,14 +35,14 @@ export const Sidebar = ({ open, onOpenChange }: SidebarProps) => {
       </div>
       <nav className="space-y-1 p-2">
         {menuItems.map((item) => (
-          <a
+          <Link
             key={item.label}
-            href={item.href}
+            to={item.href}
             className="flex items-center space-x-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:bg-accent animate-hover"
           >
             <item.icon className="h-5 w-5" />
             <span>{item.label}</span>
-          </a>
+          </Link>
         ))}
       </nav>
     </aside>
