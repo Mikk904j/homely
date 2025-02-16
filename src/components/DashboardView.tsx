@@ -1,11 +1,10 @@
-
 import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Activity, Package, Clock, AlertTriangle, TrendingUp, Users, FileText, CheckCircle2, BarChart3, Ticket, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/components/ui/use-toast";
 
 interface DashboardStats {
@@ -91,24 +90,28 @@ export const DashboardView = () => {
   const { data: stats, isLoading: statsLoading } = useQuery({
     queryKey: ['dashboardStats'],
     queryFn: fetchDashboardStats,
-    onError: (error: any) => {
-      toast({
-        title: "Error loading dashboard stats",
-        description: error.message,
-        variant: "destructive",
-      });
+    meta: {
+      onError: (error: any) => {
+        toast({
+          title: "Error loading dashboard stats",
+          description: error.message,
+          variant: "destructive",
+        });
+      }
     }
   });
 
   const { data: recentActivity, isLoading: activityLoading } = useQuery({
     queryKey: ['recentActivity'],
     queryFn: fetchRecentActivity,
-    onError: (error: any) => {
-      toast({
-        title: "Error loading recent activity",
-        description: error.message,
-        variant: "destructive",
-      });
+    meta: {
+      onError: (error: any) => {
+        toast({
+          title: "Error loading recent activity",
+          description: error.message,
+          variant: "destructive",
+        });
+      }
     }
   });
 

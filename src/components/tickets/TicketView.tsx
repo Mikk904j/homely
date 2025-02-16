@@ -6,30 +6,32 @@ import { Ticket, Clock, AlertTriangle, CheckCircle2, User, MessageSquare } from 
 import { CreateTicketDialog } from "./CreateTicketDialog";
 import { TicketDetailsDialog } from "./TicketDetailsDialog";
 import { supabase } from "@/integrations/supabase/client";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/components/ui/use-toast";
 
 interface TicketType {
   id: string;
   title: string;
-  description: string;
+  description: string | null;
   priority: 'high' | 'medium' | 'low';
   status: 'open' | 'in_progress' | 'completed';
   assignee_id: string | null;
-  created_by: string;
-  created_at: string;
-  updated_at: string;
+  created_by: string | null;
+  created_at: string | null;
+  updated_at: string | null;
 }
 
 interface TicketWithComments extends TicketType {
   comments: number;
   assignee_name?: string;
+  ticket_comments?: Array<{ count: number }>;
 }
 
 export const TicketView = () => {
   const [selectedTicket, setSelectedTicket] = useState<TicketWithComments | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const { data: tickets, isLoading } = useQuery({
     queryKey: ['tickets'],
@@ -47,7 +49,7 @@ export const TicketView = () => {
       // Fetch profiles for assignees
       const assigneeIds = ticketsData
         .map(ticket => ticket.assignee_id)
-        .filter(id => id !== null);
+        .filter((id): id is string => id !== null);
 
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
@@ -61,18 +63,20 @@ export const TicketView = () => {
         `${p.first_name || ''} ${p.last_name || ''}`.trim() || 'Unassigned'
       ]));
 
-      return ticketsData.map(ticket => ({
-        ...ticket,
+      return ticketsData.map((ticket): TicketWithComments => ({
+        ...ticket as unknown as TicketType, // Cast to ensure correct types
         comments: ticket.ticket_comments[0].count,
         assignee_name: ticket.assignee_id ? profileMap.get(ticket.assignee_id) : 'Unassigned'
       }));
     },
-    onError: (error: any) => {
-      toast({
-        title: "Error loading tickets",
-        description: error.message,
-        variant: "destructive",
-      });
+    meta: {
+      onError: (error: any) => {
+        toast({
+          title: "Error loading tickets",
+          description: error.message,
+          variant: "destructive",
+        });
+      }
     }
   });
 
