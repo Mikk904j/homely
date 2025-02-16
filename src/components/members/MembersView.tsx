@@ -1,27 +1,90 @@
 
+import { useState } from "react";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Users, Mail, Phone, Star, Shield } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { MemberCard } from "./MemberCard";
+import { AddMemberDialog } from "./AddMemberDialog";
+import { EditMemberDialog } from "./EditMemberDialog";
+import { Users, Star, Shield } from "lucide-react";
+import type { Household, HouseholdMember } from "@/types/members";
 
 export const MembersView = () => {
-  const members = [
-    {
-      id: 1,
-      name: "John Doe",
-      role: "Admin",
-      email: "john@example.com",
-      phone: "+1 234 567 890",
-      status: "active",
-    },
-    {
-      id: 2,
-      name: "Sarah Smith",
-      role: "Member",
-      email: "sarah@example.com",
-      phone: "+1 234 567 891",
-      status: "active",
-    },
-  ];
+  const [selectedMember, setSelectedMember] = useState<HouseholdMember | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+
+  const { data: household } = useQuery({
+    queryKey: ['household'],
+    queryFn: async () => {
+      const { data: householdData, error } = await supabase
+        .from('households')
+        .select('*')
+        .single();
+
+      if (error) throw error;
+      return householdData as Household;
+    }
+  });
+
+  const { data: currentUserRole } = useQuery({
+    queryKey: ['current-user-role', household?.id],
+    enabled: !!household?.id,
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      const { data, error } = await supabase
+        .from('member_households')
+        .select('role')
+        .eq('household_id', household?.id)
+        .eq('user_id', user.id)
+        .single();
+
+      if (error) throw error;
+      return data.role;
+    }
+  });
+
+  const { data: members = [], isLoading } = useQuery({
+    queryKey: ['household-members', household?.id],
+    enabled: !!household?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('member_households')
+        .select(`
+          *,
+          profile:profiles (
+            first_name,
+            last_name,
+            phone,
+            avatar_url,
+            status
+          )
+        `)
+        .eq('household_id', household?.id)
+        .order('created_at');
+
+      if (error) throw error;
+      return data as HouseholdMember[];
+    }
+  });
+
+  const handleEditMember = (member: HouseholdMember) => {
+    setSelectedMember(member);
+    setEditDialogOpen(true);
+  };
+
+  if (isLoading) {
+    return <div className="flex items-center justify-center h-screen">Loading...</div>;
+  }
+
+  const stats = {
+    total: members.length,
+    admins: members.filter(m => m.role === 'admin').length,
+    active: members.filter(m => m.profile?.status === 'active').length,
+  };
+
+  const isAdmin = currentUserRole === 'admin';
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -30,44 +93,24 @@ export const MembersView = () => {
           <h1 className="text-3xl font-bold">Household Members</h1>
           <p className="text-muted-foreground">Manage your household members and their permissions</p>
         </div>
-        <Button className="animate-hover">
-          Add Member
-        </Button>
+        {isAdmin && household && (
+          <AddMemberDialog
+            householdId={household.id}
+            onMemberAdded={() => {
+              // React Query will automatically refresh the members list
+            }}
+          />
+        )}
       </div>
 
       <div className="grid gap-6">
         {members.map((member) => (
-          <Card key={member.id} className="p-6">
-            <div className="flex items-start justify-between">
-              <div className="flex items-center space-x-4">
-                <div className="size-12 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-lg font-semibold">
-                  {member.name.split(" ").map(n => n[0]).join("")}
-                </div>
-                <div>
-                  <h3 className="font-semibold flex items-center">
-                    {member.name}
-                    {member.role === "Admin" && (
-                      <Shield className="h-4 w-4 text-primary ml-2" />
-                    )}
-                  </h3>
-                  <p className="text-sm text-muted-foreground">{member.role}</p>
-                </div>
-              </div>
-              <Button variant="outline" size="sm">
-                Edit
-              </Button>
-            </div>
-            <div className="mt-4 grid gap-4 md:grid-cols-2">
-              <div className="flex items-center space-x-2 text-sm">
-                <Mail className="h-4 w-4 text-muted-foreground" />
-                <span>{member.email}</span>
-              </div>
-              <div className="flex items-center space-x-2 text-sm">
-                <Phone className="h-4 w-4 text-muted-foreground" />
-                <span>{member.phone}</span>
-              </div>
-            </div>
-          </Card>
+          <MemberCard
+            key={member.id}
+            member={member}
+            onEdit={handleEditMember}
+            currentUserIsAdmin={isAdmin}
+          />
         ))}
       </div>
 
@@ -76,27 +119,63 @@ export const MembersView = () => {
           <h3 className="text-lg font-semibold mb-4">Member Statistics</h3>
           <div className="space-y-4">
             <div className="flex justify-between items-center">
-              <span>Total Members</span>
-              <span className="font-medium">4</span>
+              <div className="flex items-center space-x-2">
+                <Users className="h-4 w-4 text-muted-foreground" />
+                <span>Total Members</span>
+              </div>
+              <span className="font-medium">{stats.total}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span>Active Members</span>
-              <span className="font-medium">3</span>
+              <div className="flex items-center space-x-2">
+                <Star className="h-4 w-4 text-muted-foreground" />
+                <span>Active Members</span>
+              </div>
+              <span className="font-medium">{stats.active}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span>Pending Invites</span>
-              <span className="font-medium">1</span>
+              <div className="flex items-center space-x-2">
+                <Shield className="h-4 w-4 text-muted-foreground" />
+                <span>Administrators</span>
+              </div>
+              <span className="font-medium">{stats.admins}</span>
             </div>
           </div>
         </Card>
 
         <Card className="p-6">
-          <h3 className="text-lg font-semibold mb-4">Recent Activity</h3>
+          <h3 className="text-lg font-semibold mb-4">Household Information</h3>
           <div className="space-y-4">
-            <p className="text-muted-foreground">Loading activity...</p>
+            <div className="flex justify-between items-center">
+              <span>Household Name</span>
+              <span className="font-medium">{household?.name}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span>Created</span>
+              <span className="font-medium">
+                {household?.created_at
+                  ? new Date(household.created_at).toLocaleDateString()
+                  : 'N/A'}
+              </span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span>Your Role</span>
+              <span className="font-medium capitalize">{currentUserRole || 'Loading...'}</span>
+            </div>
           </div>
         </Card>
       </div>
+
+      {selectedMember && (
+        <EditMemberDialog
+          member={selectedMember}
+          open={editDialogOpen}
+          onOpenChange={setEditDialogOpen}
+          onMemberUpdated={() => {
+            setSelectedMember(null);
+            // React Query will automatically refresh the members list
+          }}
+        />
+      )}
     </div>
   );
 };

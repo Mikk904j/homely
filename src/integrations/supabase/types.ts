@@ -54,6 +54,57 @@ export type Database = {
         }
         Relationships: []
       }
+      households: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          id: string
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      member_households: {
+        Row: {
+          created_at: string | null
+          household_id: string
+          id: string
+          role: Database["public"]["Enums"]["member_role"]
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          household_id: string
+          id?: string
+          role?: Database["public"]["Enums"]["member_role"]
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          household_id?: string
+          id?: string
+          role?: Database["public"]["Enums"]["member_role"]
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -61,6 +112,8 @@ export type Database = {
           first_name: string | null
           id: string
           last_name: string | null
+          phone: string | null
+          status: string | null
           updated_at: string | null
         }
         Insert: {
@@ -69,6 +122,8 @@ export type Database = {
           first_name?: string | null
           id: string
           last_name?: string | null
+          phone?: string | null
+          status?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -77,6 +132,8 @@ export type Database = {
           first_name?: string | null
           id?: string
           last_name?: string | null
+          phone?: string | null
+          status?: string | null
           updated_at?: string | null
         }
         Relationships: []
@@ -225,7 +282,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      member_role: "admin" | "member"
     }
     CompositeTypes: {
       [_ in never]: never
