@@ -67,15 +67,15 @@ export const TicketView = () => {
         id: ticket.id,
         title: ticket.title,
         description: ticket.description || '',
-        priority: ticket.priority,
-        status: ticket.status,
+        priority: ticket.priority as TicketType['priority'],
+        status: ticket.status as TicketType['status'],
         assignee: ticket.assignee_id ? profileMap.get(ticket.assignee_id) || 'Unassigned' : 'Unassigned',
         created: new Date(ticket.created_at || '').toLocaleString(),
         comments: ticket.ticket_comments[0].count,
         created_by: ticket.created_by,
         created_at: ticket.created_at,
         updated_at: ticket.updated_at
-      }));
+      })) as TicketWithComments[];
     },
     meta: {
       onError: (error: any) => {

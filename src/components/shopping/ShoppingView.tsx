@@ -9,8 +9,13 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { ShoppingList } from "@/types/shopping";
 
+interface ExtendedShoppingList extends ShoppingList {
+  assignee?: string;
+  items: number;
+}
+
 export const ShoppingView = () => {
-  const [selectedList, setSelectedList] = useState<(ShoppingList & { assignee?: string }) | null>(null);
+  const [selectedList, setSelectedList] = useState<ExtendedShoppingList | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
 
   const { data: lists, isLoading } = useQuery({
@@ -45,13 +50,14 @@ export const ShoppingView = () => {
 
       return listsData.map(list => ({
         ...list,
+        status: list.status as ShoppingList['status'], // Type assertion to ensure correct status type
         assignee: list.assignee_id ? profileMap.get(list.assignee_id) : 'Unassigned',
         items: list.shopping_list_items[0].count
-      }));
+      })) as ExtendedShoppingList[];
     }
   });
 
-  const handleListClick = (list: ShoppingList & { assignee?: string }) => {
+  const handleListClick = (list: ExtendedShoppingList) => {
     setSelectedList(list);
     setDetailsOpen(true);
   };
