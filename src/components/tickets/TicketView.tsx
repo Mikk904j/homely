@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,12 +20,8 @@ interface TicketType {
   updated_at: string | null;
 }
 
-interface TicketWithComments {
-  id: number;
-  title: string;
+interface TicketWithComments extends Omit<TicketType, 'description' | 'assignee_id'> {
   description: string;
-  priority: string;
-  status: string;
   assignee: string;
   created: string;
   comments: number;
@@ -69,14 +64,17 @@ export const TicketView = () => {
       ]));
 
       return ticketsData.map(ticket => ({
-        id: parseInt(ticket.id),
+        id: ticket.id,
         title: ticket.title,
         description: ticket.description || '',
         priority: ticket.priority,
         status: ticket.status,
         assignee: ticket.assignee_id ? profileMap.get(ticket.assignee_id) || 'Unassigned' : 'Unassigned',
         created: new Date(ticket.created_at || '').toLocaleString(),
-        comments: ticket.ticket_comments[0].count
+        comments: ticket.ticket_comments[0].count,
+        created_by: ticket.created_by,
+        created_at: ticket.created_at,
+        updated_at: ticket.updated_at
       }));
     },
     meta: {
@@ -90,7 +88,6 @@ export const TicketView = () => {
     }
   });
 
-  // Subscribe to realtime updates
   useEffect(() => {
     const channel = supabase
       .channel('tickets-channel')

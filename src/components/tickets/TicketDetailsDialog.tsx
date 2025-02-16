@@ -49,8 +49,11 @@ export const TicketDetailsDialog = ({ ticket, open, onOpenChange }: TicketDetail
       const { data, error } = await supabase
         .from('ticket_comments')
         .select(`
-          *,
-          profiles:user_id (
+          id,
+          comment,
+          created_at,
+          user_id,
+          profiles:profiles (
             first_name,
             last_name
           )
@@ -60,7 +63,7 @@ export const TicketDetailsDialog = ({ ticket, open, onOpenChange }: TicketDetail
 
       if (error) throw error;
 
-      return (data as Comment[]).map(comment => ({
+      return (data as unknown as Comment[]).map(comment => ({
         id: comment.id,
         comment: comment.comment,
         time: new Date(comment.created_at).toLocaleString(),
