@@ -21,10 +21,15 @@ interface TicketType {
   updated_at: string | null;
 }
 
-interface TicketWithComments extends TicketType {
+interface TicketWithComments {
+  id: number;
+  title: string;
+  description: string;
+  priority: string;
+  status: string;
+  assignee: string;
+  created: string;
   comments: number;
-  assignee_name?: string;
-  ticket_comments?: Array<{ count: number }>;
 }
 
 export const TicketView = () => {
@@ -63,10 +68,15 @@ export const TicketView = () => {
         `${p.first_name || ''} ${p.last_name || ''}`.trim() || 'Unassigned'
       ]));
 
-      return ticketsData.map((ticket): TicketWithComments => ({
-        ...ticket as unknown as TicketType, // Cast to ensure correct types
-        comments: ticket.ticket_comments[0].count,
-        assignee_name: ticket.assignee_id ? profileMap.get(ticket.assignee_id) : 'Unassigned'
+      return ticketsData.map(ticket => ({
+        id: parseInt(ticket.id),
+        title: ticket.title,
+        description: ticket.description || '',
+        priority: ticket.priority,
+        status: ticket.status,
+        assignee: ticket.assignee_id ? profileMap.get(ticket.assignee_id) || 'Unassigned' : 'Unassigned',
+        created: new Date(ticket.created_at || '').toLocaleString(),
+        comments: ticket.ticket_comments[0].count
       }));
     },
     meta: {
@@ -93,7 +103,6 @@ export const TicketView = () => {
         },
         (payload) => {
           console.log('Change received!', payload);
-          // Invalidate the tickets query to refresh the data
           queryClient.invalidateQueries({ queryKey: ['tickets'] });
         }
       )
@@ -102,7 +111,7 @@ export const TicketView = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [queryClient]);
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
@@ -197,11 +206,11 @@ export const TicketView = () => {
                   <div className="flex items-center space-x-4 mt-4">
                     <div className="flex items-center text-sm text-muted-foreground">
                       <User className="h-4 w-4 mr-1" />
-                      {ticket.assignee_name}
+                      {ticket.assignee}
                     </div>
                     <div className="flex items-center text-sm text-muted-foreground">
                       <Clock className="h-4 w-4 mr-1" />
-                      {new Date(ticket.created_at).toLocaleString()}
+                      {ticket.created}
                     </div>
                     <div className="flex items-center text-sm text-muted-foreground">
                       <MessageSquare className="h-4 w-4 mr-1" />
