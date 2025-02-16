@@ -12,7 +12,7 @@ import { useToast } from "@/components/ui/use-toast";
 
 interface TicketDetailsDialogProps {
   ticket: {
-    id: number;
+    id: string;
     title: string;
     description: string;
     priority: string;
@@ -23,6 +23,17 @@ interface TicketDetailsDialogProps {
   };
   open: boolean;
   onOpenChange: (open: boolean) => void;
+}
+
+interface Comment {
+  id: string;
+  comment: string;
+  created_at: string;
+  user_id: string;
+  profiles?: {
+    first_name: string | null;
+    last_name: string | null;
+  };
 }
 
 export const TicketDetailsDialog = ({ ticket, open, onOpenChange }: TicketDetailsDialogProps) => {
@@ -49,7 +60,7 @@ export const TicketDetailsDialog = ({ ticket, open, onOpenChange }: TicketDetail
 
       if (error) throw error;
 
-      return data.map(comment => ({
+      return (data as Comment[]).map(comment => ({
         id: comment.id,
         comment: comment.comment,
         time: new Date(comment.created_at).toLocaleString(),

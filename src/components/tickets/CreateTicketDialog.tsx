@@ -7,8 +7,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/components/ui/use-toast";
+
+interface Profile {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+}
 
 export const CreateTicketDialog = () => {
   const [open, setOpen] = useState(false);
@@ -30,7 +36,7 @@ export const CreateTicketDialog = () => {
 
       if (error) throw error;
 
-      return data.map(member => ({
+      return (data as Profile[]).map(member => ({
         id: member.id,
         name: `${member.first_name || ''} ${member.last_name || ''}`.trim() || 'Unnamed User'
       }));
