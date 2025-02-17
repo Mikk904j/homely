@@ -32,7 +32,7 @@ export const TicketDetailsDialog = ({ ticket, open, onOpenChange }: TicketDetail
           comment,
           created_at,
           user_id,
-          profiles:profiles (
+          user:profiles!ticket_comments_user_id_fkey (
             first_name,
             last_name
           )
@@ -42,12 +42,12 @@ export const TicketDetailsDialog = ({ ticket, open, onOpenChange }: TicketDetail
 
       if (error) throw error;
 
-      return (data as CommentData[]).map(comment => ({
+      return (data as any[]).map(comment => ({
         id: comment.id,
         comment: comment.comment,
         time: new Date(comment.created_at).toLocaleString(),
-        user: comment.profiles?.first_name 
-          ? `${comment.profiles.first_name} ${comment.profiles.last_name}`
+        user: comment.user?.first_name 
+          ? `${comment.user.first_name} ${comment.user.last_name}`
           : 'Unknown User'
       }));
     },

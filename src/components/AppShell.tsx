@@ -2,7 +2,7 @@
 import { useEffect } from "react";
 import { Sidebar } from "./Sidebar";
 import { Navbar } from "./Navbar";
-import { useMobile } from "@/hooks/use-mobile";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -11,7 +11,7 @@ interface AppShellProps {
 }
 
 export const AppShell = ({ children, sidebarOpen, onSidebarOpenChange }: AppShellProps) => {
-  const isMobile = useMobile();
+  const isMobile = useIsMobile();
 
   // Close sidebar on mobile when route changes
   useEffect(() => {
