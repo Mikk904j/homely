@@ -1,39 +1,19 @@
 
 import React, { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { User, Clock, MessageSquare, AlertTriangle } from "lucide-react";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
+import { TicketHeader } from "./TicketHeader";
+import { TicketMetadata } from "./TicketMetadata";
+import { CommentsList } from "./CommentsList";
+import { CommentForm } from "./CommentForm";
+import type { Ticket, CommentData } from "./types";
 
 interface TicketDetailsDialogProps {
-  ticket: {
-    id: string;
-    title: string;
-    description: string;
-    priority: string;
-    status: string;
-    assignee: string;
-    created: string;
-    comments: number;
-  };
+  ticket: Ticket;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-}
-
-interface Comment {
-  id: string;
-  comment: string;
-  created_at: string;
-  user_id: string;
-  profiles?: {
-    first_name: string | null;
-    last_name: string | null;
-  };
 }
 
 export const TicketDetailsDialog = ({ ticket, open, onOpenChange }: TicketDetailsDialogProps) => {
@@ -42,7 +22,6 @@ export const TicketDetailsDialog = ({ ticket, open, onOpenChange }: TicketDetail
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Fetch comments
   const { data: comments = [], isLoading: isLoadingComments } = useQuery({
     queryKey: ['ticket-comments', ticket.id],
     queryFn: async () => {
@@ -63,7 +42,7 @@ export const TicketDetailsDialog = ({ ticket, open, onOpenChange }: TicketDetail
 
       if (error) throw error;
 
-      return (data as unknown as Comment[]).map(comment => ({
+      return (data as CommentData[]).map(comment => ({
         id: comment.id,
         comment: comment.comment,
         time: new Date(comment.created_at).toLocaleString(),
@@ -83,7 +62,6 @@ export const TicketDetailsDialog = ({ ticket, open, onOpenChange }: TicketDetail
     }
   });
 
-  // Handle status update
   const handleStatusUpdate = async (newStatus: string) => {
     try {
       const { error } = await supabase
@@ -108,7 +86,6 @@ export const TicketDetailsDialog = ({ ticket, open, onOpenChange }: TicketDetail
     }
   };
 
-  // Handle comment submission
   const handleCommentSubmit = async () => {
     if (!newComment.trim()) return;
 
@@ -143,19 +120,6 @@ export const TicketDetailsDialog = ({ ticket, open, onOpenChange }: TicketDetail
     }
   };
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case "high":
-        return "text-red-500 bg-red-50";
-      case "medium":
-        return "text-yellow-500 bg-yellow-50";
-      case "low":
-        return "text-green-500 bg-green-50";
-      default:
-        return "text-gray-500 bg-gray-50";
-    }
-  };
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
@@ -163,92 +127,26 @@ export const TicketDetailsDialog = ({ ticket, open, onOpenChange }: TicketDetail
           <DialogTitle>{ticket.title}</DialogTitle>
         </DialogHeader>
         <div className="space-y-6 mt-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <div className={`p-2 rounded-full ${getPriorityColor(ticket.priority)}`}>
-                <AlertTriangle className="h-4 w-4" />
-              </div>
-              <div>
-                <p className="text-sm font-medium">Priority: {ticket.priority}</p>
-                <p className="text-sm text-muted-foreground">Current status: {ticket.status}</p>
-              </div>
-            </div>
-            <Select
-              defaultValue={ticket.status}
-              onValueChange={handleStatusUpdate}
-            >
-              <SelectTrigger className="w-[140px]">
-                <SelectValue placeholder="Update status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="open">Open</SelectItem>
-                <SelectItem value="in_progress">In Progress</SelectItem>
-                <SelectItem value="completed">Completed</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          <TicketHeader ticket={ticket} onStatusUpdate={handleStatusUpdate} />
 
           <div className="space-y-2">
             <h4 className="text-sm font-medium">Description</h4>
             <p className="text-sm text-muted-foreground">{ticket.description}</p>
           </div>
 
-          <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-            <div className="flex items-center">
-              <User className="h-4 w-4 mr-1" />
-              {ticket.assignee}
-            </div>
-            <div className="flex items-center">
-              <Clock className="h-4 w-4 mr-1" />
-              {ticket.created}
-            </div>
-            <div className="flex items-center">
-              <MessageSquare className="h-4 w-4 mr-1" />
-              {comments.length} comments
-            </div>
-          </div>
+          <TicketMetadata ticket={ticket} />
 
           <div className="space-y-4">
             <h4 className="text-sm font-medium">Comments</h4>
-            {isLoadingComments ? (
-              <p className="text-sm text-muted-foreground">Loading comments...</p>
-            ) : (
-              <div className="space-y-4">
-                {comments.map((comment) => (
-                  <div key={comment.id} className="flex space-x-3">
-                    <Avatar>
-                      <AvatarFallback>{comment.user[0]}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 space-y-1">
-                      <div className="flex items-center justify-between">
-                        <p className="text-sm font-medium">{comment.user}</p>
-                        <span className="text-xs text-muted-foreground">{comment.time}</span>
-                      </div>
-                      <p className="text-sm text-muted-foreground">{comment.comment}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+            <CommentsList comments={comments} isLoading={isLoadingComments} />
           </div>
 
-          <div className="space-y-2">
-            <h4 className="text-sm font-medium">Add Comment</h4>
-            <Textarea
-              placeholder="Write a comment..."
-              value={newComment}
-              onChange={(e) => setNewComment(e.target.value)}
-            />
-            <div className="flex justify-end">
-              <Button
-                size="sm"
-                onClick={handleCommentSubmit}
-                disabled={isSubmitting || !newComment.trim()}
-              >
-                Post Comment
-              </Button>
-            </div>
-          </div>
+          <CommentForm
+            comment={newComment}
+            onCommentChange={setNewComment}
+            onSubmit={handleCommentSubmit}
+            isSubmitting={isSubmitting}
+          />
         </div>
       </DialogContent>
     </Dialog>
