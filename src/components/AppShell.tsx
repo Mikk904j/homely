@@ -1,6 +1,8 @@
 
+import { useEffect } from "react";
 import { Sidebar } from "./Sidebar";
 import { Navbar } from "./Navbar";
+import { useMobile } from "@/hooks/use-mobile";
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -9,6 +11,15 @@ interface AppShellProps {
 }
 
 export const AppShell = ({ children, sidebarOpen, onSidebarOpenChange }: AppShellProps) => {
+  const isMobile = useMobile();
+
+  // Close sidebar on mobile when route changes
+  useEffect(() => {
+    if (isMobile) {
+      onSidebarOpenChange(false);
+    }
+  }, [isMobile, onSidebarOpenChange]);
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar onMenuClick={() => onSidebarOpenChange(!sidebarOpen)} />

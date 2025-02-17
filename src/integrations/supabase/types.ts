@@ -244,6 +244,7 @@ export type Database = {
           created_at: string | null
           created_by: string | null
           description: string | null
+          household_id: string | null
           id: string
           priority: string
           status: string
@@ -255,6 +256,7 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           description?: string | null
+          household_id?: string | null
           id?: string
           priority: string
           status?: string
@@ -266,13 +268,22 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           description?: string | null
+          household_id?: string | null
           id?: string
           priority?: string
           status?: string
           title?: string
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "tickets_household_id_fkey"
+            columns: ["household_id"]
+            isOneToOne: false
+            referencedRelation: "households"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
