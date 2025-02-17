@@ -1,6 +1,16 @@
 
 export type MemberRole = 'admin' | 'member';
 
+export interface Profile {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+  phone: string | null;
+  avatar_url: string | null;
+  status: string;
+  email?: string | null;
+}
+
 export interface Household {
   id: string;
   name: string;
@@ -16,13 +26,7 @@ export interface HouseholdMember {
   role: MemberRole;
   created_at: string | null;
   updated_at: string | null;
-  profile?: {
-    first_name: string | null;
-    last_name: string | null;
-    phone: string | null;
-    avatar_url: string | null;
-    status: string;
-  };
+  profile?: Profile;
 }
 
 export interface MemberFormData {

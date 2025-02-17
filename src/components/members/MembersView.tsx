@@ -52,7 +52,12 @@ export const MembersView = () => {
       const { data, error } = await supabase
         .from('member_households')
         .select(`
-          *,
+          id,
+          user_id,
+          household_id,
+          role,
+          created_at,
+          updated_at,
           profile:profiles (
             first_name,
             last_name,
@@ -65,7 +70,7 @@ export const MembersView = () => {
         .order('created_at');
 
       if (error) throw error;
-      return data as HouseholdMember[];
+      return data as unknown as HouseholdMember[];
     }
   });
 

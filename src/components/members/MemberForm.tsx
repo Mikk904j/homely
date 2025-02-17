@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import type { MemberFormData, HouseholdMember } from "@/types/members";
+import type { MemberFormData, HouseholdMember, MemberRole } from "@/types/members";
 
 interface MemberFormProps {
   member?: HouseholdMember;
@@ -51,23 +51,28 @@ export const MemberForm = ({ member, householdId, onSuccess, onCancel }: MemberF
 
         if (memberError) throw memberError;
       } else {
-        // Create new profile and member
-        const { data: profile, error: profileError } = await supabase
+        // Create new member - first get current user
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        if (authError) throw authError;
+        if (!user) throw new Error('No authenticated user');
+
+        // Update the profile
+        const { error: profileError } = await supabase
           .from('profiles')
-          .insert({
+          .update({
             first_name: formData.first_name,
             last_name: formData.last_name,
             phone: formData.phone,
           })
-          .select()
-          .single();
+          .eq('id', user.id);
 
         if (profileError) throw profileError;
 
+        // Create member_household entry
         const { error: memberError } = await supabase
           .from('member_households')
           .insert({
-            user_id: profile.id,
+            user_id: user.id,
             household_id: householdId,
             role: formData.role,
           });

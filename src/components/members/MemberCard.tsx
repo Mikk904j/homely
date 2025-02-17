@@ -1,7 +1,7 @@
 
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Mail, Phone, Shield } from "lucide-react";
+import { Phone, Shield } from "lucide-react";
 import type { HouseholdMember } from "@/types/members";
 
 interface MemberCardProps {
@@ -36,11 +36,7 @@ export const MemberCard = ({ member, onEdit, currentUserIsAdmin }: MemberCardPro
           </Button>
         )}
       </div>
-      <div className="mt-4 grid gap-4 md:grid-cols-2">
-        <div className="flex items-center space-x-2 text-sm">
-          <Mail className="h-4 w-4 text-muted-foreground" />
-          <span>{member.profile?.email || 'No email'}</span>
-        </div>
+      <div className="mt-4 grid gap-4">
         <div className="flex items-center space-x-2 text-sm">
           <Phone className="h-4 w-4 text-muted-foreground" />
           <span>{member.profile?.phone || 'No phone'}</span>
