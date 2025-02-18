@@ -1,107 +1,127 @@
 
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Bell, Lock, Home, Palette, User, Shield } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { useToast } from "@/components/ui/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 export const SettingsView = () => {
-  const settingSections = [
-    {
-      title: "Profile Settings",
-      icon: User,
-      description: "Manage your personal information and preferences",
-      href: "#profile",
-    },
-    {
-      title: "Household Settings",
-      icon: Home,
-      description: "Configure your household details and preferences",
-      href: "#household",
-    },
-    {
-      title: "Notifications",
-      icon: Bell,
-      description: "Customize your notification preferences",
-      href: "#notifications",
-    },
-    {
-      title: "Security",
-      icon: Lock,
-      description: "Manage security settings and permissions",
-      href: "#security",
-    },
-    {
-      title: "Appearance",
-      icon: Palette,
-      description: "Customize the look and feel of your dashboard",
-      href: "#appearance",
-    },
-    {
-      title: "Roles & Permissions",
-      icon: Shield,
-      description: "Manage member roles and access levels",
-      href: "#roles",
-    },
-  ];
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    const loadProfile = async () => {
+      setIsLoading(true);
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error("Not authenticated");
+
+        const { data: profile, error } = await supabase
+          .from("profiles")
+          .select("first_name, last_name, phone")
+          .eq("id", user.id)
+          .single();
+
+        if (error) throw error;
+
+        if (profile) {
+          setFirstName(profile.first_name || "");
+          setLastName(profile.last_name || "");
+          setPhone(profile.phone || "");
+        }
+      } catch (error: any) {
+        toast({
+          title: "Error loading profile",
+          description: error.message,
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadProfile();
+  }, [toast]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSaving(true);
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      const { error } = await supabase
+        .from("profiles")
+        .update({
+          first_name: firstName,
+          last_name: lastName,
+          phone: phone,
+        })
+        .eq("id", user.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Your profile has been updated.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  if (isLoading) {
+    return <div>Loading...</div>;
+  }
 
   return (
-    <div className="space-y-8 animate-fade-in">
-      <div>
-        <h1 className="text-3xl font-bold">Settings</h1>
-        <p className="text-muted-foreground">Manage your household preferences and configurations</p>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {settingSections.map((section) => (
-          <Card
-            key={section.title}
-            className="p-6 hover:shadow-lg transition-all duration-200 animate-hover"
-          >
-            <div className="flex items-start space-x-4">
-              <div className="p-2 rounded-full bg-primary/10">
-                <section.icon className="h-6 w-6 text-primary" />
-              </div>
-              <div className="space-y-1">
-                <h3 className="font-semibold">{section.title}</h3>
-                <p className="text-sm text-muted-foreground">{section.description}</p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="mt-4"
-                  asChild
-                >
-                  <a href={section.href}>Configure</a>
-                </Button>
-              </div>
-            </div>
-          </Card>
-        ))}
-      </div>
-
+    <div className="container max-w-2xl mx-auto py-8">
       <Card className="p-6">
-        <h3 className="text-lg font-semibold mb-4">Quick Settings</h3>
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h4 className="font-medium">Email Notifications</h4>
-              <p className="text-sm text-muted-foreground">Receive email updates about household activities</p>
+        <h2 className="text-2xl font-bold mb-6">Profile Settings</h2>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">First Name</label>
+              <Input
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                placeholder="Enter your first name"
+              />
             </div>
-            <Button variant="outline" size="sm">Configure</Button>
-          </div>
-          <div className="flex items-center justify-between">
-            <div>
-              <h4 className="font-medium">Dark Mode</h4>
-              <p className="text-sm text-muted-foreground">Toggle between light and dark theme</p>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Last Name</label>
+              <Input
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                placeholder="Enter your last name"
+              />
             </div>
-            <Button variant="outline" size="sm">Configure</Button>
           </div>
-          <div className="flex items-center justify-between">
-            <div>
-              <h4 className="font-medium">Mobile Notifications</h4>
-              <p className="text-sm text-muted-foreground">Configure push notification settings</p>
-            </div>
-            <Button variant="outline" size="sm">Configure</Button>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Phone Number</label>
+            <Input
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="Enter your phone number"
+            />
           </div>
-        </div>
+          <Button type="submit" disabled={isSaving}>
+            {isSaving ? "Saving..." : "Save Changes"}
+          </Button>
+        </form>
       </Card>
     </div>
   );

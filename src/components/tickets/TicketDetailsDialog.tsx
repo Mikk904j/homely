@@ -8,7 +8,7 @@ import { TicketHeader } from "./TicketHeader";
 import { TicketMetadata } from "./TicketMetadata";
 import { CommentsList } from "./CommentsList";
 import { CommentForm } from "./CommentForm";
-import type { Ticket, CommentData } from "./types";
+import type { Ticket } from "./types";
 
 interface TicketDetailsDialogProps {
   ticket: Ticket;
@@ -91,12 +91,15 @@ export const TicketDetailsDialog = ({ ticket, open, onOpenChange }: TicketDetail
 
     setIsSubmitting(true);
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
       const { error } = await supabase
         .from('ticket_comments')
         .insert({
           ticket_id: ticket.id,
           comment: newComment.trim(),
-          user_id: (await supabase.auth.getUser()).data.user?.id
+          user_id: user.id
         });
 
       if (error) throw error;

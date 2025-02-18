@@ -1,7 +1,7 @@
 
-import { useState } from "react";
-import { AppShell } from "@/components/AppShell";
 import { SettingsView } from "@/components/settings/SettingsView";
+import { AppShell } from "@/components/AppShell";
+import { useState } from "react";
 
 const Settings = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
