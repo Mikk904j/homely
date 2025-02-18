@@ -7,9 +7,11 @@ import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
 export const LoginForm = () => {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    email: "",
+    password: "",
+  });
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -19,26 +21,23 @@ export const LoginForm = () => {
 
     try {
       const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+        email: formData.email,
+        password: formData.password,
       });
 
       if (error) throw error;
 
       // Check if user has a household
-      const { data: memberData, error: memberError } = await supabase
-        .from("member_households")
-        .select("household_id")
-        .single();
+      const { data: memberData } = await supabase
+        .from('member_households')
+        .select('household_id')
+        .maybeSingle();
 
-      if (memberError && memberError.code !== "PGRST116") {
-        throw memberError;
-      }
-
+      // Navigate based on household membership
       navigate(memberData ? "/" : "/household-setup");
     } catch (error: any) {
       toast({
-        title: "Error",
+        title: "Login failed",
         description: error.message,
         variant: "destructive",
       });
@@ -50,21 +49,27 @@ export const LoginForm = () => {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="space-y-2">
+        <label className="text-sm font-medium">Email</label>
         <Input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
           required
+          type="email"
+          value={formData.email}
+          onChange={(e) =>
+            setFormData((prev) => ({ ...prev, email: e.target.value }))
+          }
+          placeholder="Enter your email"
         />
       </div>
       <div className="space-y-2">
+        <label className="text-sm font-medium">Password</label>
         <Input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
           required
+          type="password"
+          value={formData.password}
+          onChange={(e) =>
+            setFormData((prev) => ({ ...prev, password: e.target.value }))
+          }
+          placeholder="Enter your password"
         />
       </div>
       <Button type="submit" className="w-full" disabled={isLoading}>
