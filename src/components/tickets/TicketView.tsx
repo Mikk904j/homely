@@ -1,34 +1,16 @@
-import React, { useState, useEffect } from "react";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Ticket, Clock, AlertTriangle, CheckCircle2, User, MessageSquare } from "lucide-react";
-import { CreateTicketDialog } from "./CreateTicketDialog";
-import { TicketDetailsDialog } from "./TicketDetailsDialog";
-import { supabase } from "@/integrations/supabase/client";
+
+import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/components/ui/use-toast";
-
-interface TicketType {
-  id: string;
-  title: string;
-  description: string | null;
-  priority: 'high' | 'medium' | 'low';
-  status: 'open' | 'in_progress' | 'completed';
-  assignee_id: string | null;
-  created_by: string | null;
-  created_at: string | null;
-  updated_at: string | null;
-}
-
-interface TicketWithComments extends Omit<TicketType, 'description' | 'assignee_id'> {
-  description: string;
-  assignee: string;
-  created: string;
-  comments: number;
-}
+import { supabase } from "@/integrations/supabase/client";
+import { CreateTicketDialog } from "./CreateTicketDialog";
+import { TicketDetailsDialog } from "./TicketDetailsDialog";
+import { TicketStats } from "./TicketStats";
+import { TicketList } from "./TicketList";
+import type { Ticket } from "./types";
 
 export const TicketView = () => {
-  const [selectedTicket, setSelectedTicket] = useState<TicketWithComments | null>(null);
+  const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -67,15 +49,12 @@ export const TicketView = () => {
         id: ticket.id,
         title: ticket.title,
         description: ticket.description || '',
-        priority: ticket.priority as TicketType['priority'],
-        status: ticket.status as TicketType['status'],
+        priority: ticket.priority,
+        status: ticket.status,
         assignee: ticket.assignee_id ? profileMap.get(ticket.assignee_id) || 'Unassigned' : 'Unassigned',
         created: new Date(ticket.created_at || '').toLocaleString(),
         comments: ticket.ticket_comments[0].count,
-        created_by: ticket.created_by,
-        created_at: ticket.created_at,
-        updated_at: ticket.updated_at
-      })) as TicketWithComments[];
+      }));
     },
     meta: {
       onError: (error: any) => {
@@ -110,33 +89,7 @@ export const TicketView = () => {
     };
   }, [queryClient]);
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case "high":
-        return "text-red-500 bg-red-50 dark:bg-red-950/50";
-      case "medium":
-        return "text-yellow-500 bg-yellow-50 dark:bg-yellow-950/50";
-      case "low":
-        return "text-green-500 bg-green-50 dark:bg-green-950/50";
-      default:
-        return "text-gray-500 bg-gray-50 dark:bg-gray-950/50";
-    }
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "open":
-        return AlertTriangle;
-      case "in_progress":
-        return Clock;
-      case "completed":
-        return CheckCircle2;
-      default:
-        return Ticket;
-    }
-  };
-
-  const handleTicketClick = (ticket: TicketWithComments) => {
+  const handleTicketClick = (ticket: Ticket) => {
     setSelectedTicket(ticket);
     setDetailsOpen(true);
   };
@@ -144,13 +97,6 @@ export const TicketView = () => {
   if (isLoading) {
     return <div className="flex items-center justify-center h-screen">Loading...</div>;
   }
-
-  const stats = {
-    high: tickets?.filter(t => t.priority === 'high' && t.status === 'open').length || 0,
-    inProgress: tickets?.filter(t => t.status === 'in_progress').length || 0,
-    completed: tickets?.filter(t => t.status === 'completed').length || 0,
-    total: tickets?.length || 0,
-  };
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -162,64 +108,8 @@ export const TicketView = () => {
         <CreateTicketDialog />
       </div>
 
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card className="p-4 bg-gradient-to-br from-red-50 to-transparent dark:from-red-950/50">
-          <h3 className="font-medium text-red-600 dark:text-red-400">High Priority</h3>
-          <div className="text-2xl font-bold mt-2">{stats.high}</div>
-          <p className="text-sm text-muted-foreground">Open tickets</p>
-        </Card>
-        <Card className="p-4 bg-gradient-to-br from-yellow-50 to-transparent dark:from-yellow-950/50">
-          <h3 className="font-medium text-yellow-600 dark:text-yellow-400">In Progress</h3>
-          <div className="text-2xl font-bold mt-2">{stats.inProgress}</div>
-          <p className="text-sm text-muted-foreground">Active tickets</p>
-        </Card>
-        <Card className="p-4 bg-gradient-to-br from-green-50 to-transparent dark:from-green-950/50">
-          <h3 className="font-medium text-green-600 dark:text-green-400">Completed</h3>
-          <div className="text-2xl font-bold mt-2">{stats.completed}</div>
-          <p className="text-sm text-muted-foreground">This month</p>
-        </Card>
-        <Card className="p-4 bg-gradient-to-br from-blue-50 to-transparent dark:from-blue-950/50">
-          <h3 className="font-medium text-blue-600 dark:text-blue-400">Total</h3>
-          <div className="text-2xl font-bold mt-2">{stats.total}</div>
-          <p className="text-sm text-muted-foreground">All tickets</p>
-        </Card>
-      </div>
-
-      <div className="space-y-4">
-        {tickets?.map((ticket) => (
-          <Card
-            key={ticket.id}
-            className="p-6 hover:shadow-lg transition-all duration-200 animate-hover cursor-pointer"
-            onClick={() => handleTicketClick(ticket)}
-          >
-            <div className="flex items-start justify-between">
-              <div className="flex items-start space-x-4">
-                <div className={`p-2 rounded-full ${getPriorityColor(ticket.priority)}`}>
-                  {React.createElement(getStatusIcon(ticket.status), { className: "h-5 w-5" })}
-                </div>
-                <div>
-                  <h3 className="font-semibold">{ticket.title}</h3>
-                  <p className="text-sm text-muted-foreground mt-1">{ticket.description}</p>
-                  <div className="flex items-center space-x-4 mt-4">
-                    <div className="flex items-center text-sm text-muted-foreground">
-                      <User className="h-4 w-4 mr-1" />
-                      {ticket.assignee}
-                    </div>
-                    <div className="flex items-center text-sm text-muted-foreground">
-                      <Clock className="h-4 w-4 mr-1" />
-                      {ticket.created}
-                    </div>
-                    <div className="flex items-center text-sm text-muted-foreground">
-                      <MessageSquare className="h-4 w-4 mr-1" />
-                      {ticket.comments} comments
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </Card>
-        ))}
-      </div>
+      <TicketStats tickets={tickets || []} />
+      <TicketList tickets={tickets || []} onTicketClick={handleTicketClick} />
 
       {selectedTicket && (
         <TicketDetailsDialog
