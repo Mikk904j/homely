@@ -13,35 +13,100 @@ import Members from "./pages/Members";
 import Settings from "./pages/Settings";
 import Tickets from "./pages/Tickets";
 import Auth from "./pages/Auth";
+import HouseholdSetup from "./pages/HouseholdSetup";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
-const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
-  const [session, setSession] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+interface AuthState {
+  session: any;
+  loading: boolean;
+  hasHousehold: boolean | null;
+}
+
+const PrivateRoute = ({ children, requireHousehold = true }: { children: React.ReactNode, requireHousehold?: boolean }) => {
+  const [authState, setAuthState] = useState<AuthState>({
+    session: null,
+    loading: true,
+    hasHousehold: null,
+  });
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setLoading(false);
-    });
+    const checkAuth = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (session) {
+          // Check if user has a household
+          const { data: memberData } = await supabase
+            .from("member_households")
+            .select("household_id")
+            .single();
+
+          setAuthState({
+            session,
+            loading: false,
+            hasHousehold: !!memberData,
+          });
+        } else {
+          setAuthState({
+            session: null,
+            loading: false,
+            hasHousehold: null,
+          });
+        }
+      } catch (error) {
+        console.error("Error checking auth state:", error);
+        setAuthState({
+          session: null,
+          loading: false,
+          hasHousehold: null,
+        });
+      }
+    };
+
+    checkAuth();
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (session) {
+        const { data: memberData } = await supabase
+          .from("member_households")
+          .select("household_id")
+          .single();
+
+        setAuthState({
+          session,
+          loading: false,
+          hasHousehold: !!memberData,
+        });
+      } else {
+        setAuthState({
+          session: null,
+          loading: false,
+          hasHousehold: null,
+        });
+      }
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
-  if (loading) {
-    return <div>Loading...</div>;
+  if (authState.loading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="animate-pulse text-lg">Loading...</div>
+      </div>
+    );
   }
 
-  if (!session) {
+  if (!authState.session) {
     return <Navigate to="/auth" replace />;
+  }
+
+  if (requireHousehold && !authState.hasHousehold) {
+    return <Navigate to="/household-setup" replace />;
   }
 
   return children;
@@ -101,6 +166,14 @@ const App = () => (
                 <Settings />
               </PrivateRoute>
             }
+          />
+          <Route 
+            path="/household-setup" 
+            element={
+              <PrivateRoute requireHousehold={false}>
+                <HouseholdSetup />
+              </PrivateRoute>
+            } 
           />
           <Route path="/auth" element={<Auth />} />
           <Route path="*" element={<NotFound />} />
