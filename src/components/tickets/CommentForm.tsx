@@ -9,24 +9,28 @@ interface CommentFormProps {
   isSubmitting: boolean;
 }
 
-export const CommentForm = ({ comment, onCommentChange, onSubmit, isSubmitting }: CommentFormProps) => {
+export const CommentForm = ({
+  comment,
+  onCommentChange,
+  onSubmit,
+  isSubmitting,
+}: CommentFormProps) => {
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSubmit();
+  };
+
   return (
-    <div className="space-y-2">
-      <h4 className="text-sm font-medium">Add Comment</h4>
+    <form onSubmit={handleSubmit} className="space-y-4">
       <Textarea
-        placeholder="Write a comment..."
         value={comment}
         onChange={(e) => onCommentChange(e.target.value)}
+        placeholder="Add a comment..."
+        className="min-h-[100px]"
       />
-      <div className="flex justify-end">
-        <Button
-          size="sm"
-          onClick={onSubmit}
-          disabled={isSubmitting || !comment.trim()}
-        >
-          Post Comment
-        </Button>
-      </div>
-    </div>
+      <Button type="submit" disabled={isSubmitting || !comment.trim()}>
+        {isSubmitting ? "Posting..." : "Post Comment"}
+      </Button>
+    </form>
   );
 };

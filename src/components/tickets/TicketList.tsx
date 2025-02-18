@@ -1,7 +1,7 @@
 
 import React from "react";
 import { Card } from "@/components/ui/card";
-import { Clock, AlertTriangle, CheckCircle2, User, MessageSquare, Ticket } from "lucide-react";
+import { Clock, AlertTriangle, CheckCircle2, User, MessageSquare, Ticket as TicketIcon } from "lucide-react";
 import type { Ticket } from "./types";
 
 interface TicketListProps {
@@ -32,7 +32,7 @@ export const TicketList = ({ tickets, onTicketClick }: TicketListProps) => {
       case "completed":
         return CheckCircle2;
       default:
-        return Ticket;
+        return TicketIcon;
     }
   };
 
