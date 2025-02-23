@@ -36,7 +36,7 @@ export const RegisterForm = () => {
       if (authError) throw authError;
 
       if (authData.user) {
-        // Update the profile
+        // Update the profile with first and last name
         const { error: profileError } = await supabase
           .from('profiles')
           .update({
@@ -46,14 +46,14 @@ export const RegisterForm = () => {
           .eq('id', authData.user.id);
 
         if (profileError) throw profileError;
+
+        toast({
+          title: "Registration successful!",
+          description: "Welcome to HomeHarmony! Please set up or join a household.",
+        });
+
+        navigate("/household-setup");
       }
-
-      toast({
-        title: "Registration successful!",
-        description: "Welcome to HomeHarmony!",
-      });
-
-      navigate("/household-setup");
     } catch (error: any) {
       toast({
         title: "Registration failed",

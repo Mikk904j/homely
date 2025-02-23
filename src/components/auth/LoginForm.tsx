@@ -28,13 +28,35 @@ export const LoginForm = () => {
       if (error) throw error;
 
       // Check if user has a household
-      const { data: memberData } = await supabase
+      const { data: memberData, error: memberError } = await supabase
         .from('member_households')
         .select('household_id')
         .maybeSingle();
 
+      if (memberError) {
+        console.error('Error checking household membership:', memberError);
+        toast({
+          title: "Error",
+          description: "Could not check household membership",
+          variant: "destructive",
+        });
+        return;
+      }
+
       // Navigate based on household membership
-      navigate(memberData ? "/" : "/household-setup");
+      if (memberData?.household_id) {
+        navigate("/");
+        toast({
+          title: "Welcome back!",
+          description: "Successfully logged in",
+        });
+      } else {
+        navigate("/household-setup");
+        toast({
+          title: "Welcome!",
+          description: "Please set up or join a household",
+        });
+      }
     } catch (error: any) {
       toast({
         title: "Login failed",
