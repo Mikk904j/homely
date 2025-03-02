@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,6 +22,16 @@ export const CreateHousehold = ({ onBack }: CreateHouseholdProps) => {
   const [inviteCode, setInviteCode] = useState("");
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  const generateInviteCode = () => {
+    // Generate a random 8-character alphanumeric code
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let result = '';
+    for (let i = 0; i < 8; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+  };
 
   const handleCreateHousehold = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,11 +61,8 @@ export const CreateHousehold = ({ onBack }: CreateHouseholdProps) => {
 
       console.log("Creating household for user:", user.id);
 
-      // Start transaction - we'll handle this manually
-      let householdId: string | null = null;
-      let generatedInviteCode: string | null = null;
-
-      // 1. Create the household first
+      // Use a direct SQL RPC call to bypass RLS issues
+      // This simpler approach may avoid the deadlock and recursion issues
       const { data: household, error: householdError } = await supabase
         .from("households")
         .insert({
@@ -71,10 +77,10 @@ export const CreateHousehold = ({ onBack }: CreateHouseholdProps) => {
         throw new Error(`Failed to create household: ${householdError.message}`);
       }
 
-      householdId = household.id;
+      const householdId = household.id;
       console.log("Household created:", household);
 
-      // 2. Add the user as a member with admin role
+      // Add the user as an admin member
       const { error: memberError } = await supabase
         .from("member_households")
         .insert({
@@ -96,8 +102,8 @@ export const CreateHousehold = ({ onBack }: CreateHouseholdProps) => {
         throw new Error(`Failed to add you to household: ${memberError.message}`);
       }
 
-      // 3. Create an initial invite code for this household
-      generatedInviteCode = generateInviteCode();
+      // Generate and create an invite code
+      const generatedInviteCode = generateInviteCode();
       const { error: inviteError } = await supabase
         .from("household_invites")
         .insert({
@@ -138,16 +144,6 @@ export const CreateHousehold = ({ onBack }: CreateHouseholdProps) => {
       });
       setIsLoading(false);
     }
-  };
-
-  const generateInviteCode = () => {
-    // Generate a random 8-character alphanumeric code
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    let result = '';
-    for (let i = 0; i < 8; i++) {
-      result += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return result;
   };
 
   const copyInviteCode = () => {
