@@ -54,6 +54,44 @@ export type Database = {
         }
         Relationships: []
       }
+      household_invites: {
+        Row: {
+          code: string
+          created_at: string | null
+          created_by: string
+          expires_at: string
+          household_id: string
+          id: string
+          uses_remaining: number | null
+        }
+        Insert: {
+          code: string
+          created_at?: string | null
+          created_by: string
+          expires_at?: string
+          household_id: string
+          id?: string
+          uses_remaining?: number | null
+        }
+        Update: {
+          code?: string
+          created_at?: string | null
+          created_by?: string
+          expires_at?: string
+          household_id?: string
+          id?: string
+          uses_remaining?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "household_invites_household_id_fkey"
+            columns: ["household_id"]
+            isOneToOne: false
+            referencedRelation: "households"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       households: {
         Row: {
           created_at: string | null
@@ -290,7 +328,12 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_user_household_ids: {
+        Args: {
+          user_id: string
+        }
+        Returns: string[]
+      }
     }
     Enums: {
       member_role: "admin" | "member"
