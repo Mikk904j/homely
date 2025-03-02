@@ -3,7 +3,6 @@ import { useState } from "react";
 import { CreateHousehold } from "@/components/household/CreateHousehold";
 import { JoinHousehold } from "@/components/household/JoinHousehold";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Home, Users } from "lucide-react";
 
 const HouseholdSetup = () => {

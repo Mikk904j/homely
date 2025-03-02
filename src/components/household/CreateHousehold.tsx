@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 
 interface CreateHouseholdProps {
   onBack: () => void;
@@ -23,22 +23,32 @@ export const CreateHousehold = ({ onBack }: CreateHouseholdProps) => {
     setIsLoading(true);
 
     try {
+      // Get current user
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
+      if (!user) {
+        throw new Error("Not authenticated");
+      }
 
-      // Create household
+      console.log("Creating household for user:", user.id);
+
+      // 1. Create the household first
       const { data: household, error: householdError } = await supabase
         .from("households")
         .insert({
           name: householdName,
           created_by: user.id,
         })
-        .select()
+        .select("id")
         .single();
 
-      if (householdError) throw householdError;
+      if (householdError) {
+        console.error("Household creation error:", householdError);
+        throw new Error(`Failed to create household: ${householdError.message}`);
+      }
 
-      // Add user as admin member
+      console.log("Household created:", household);
+
+      // 2. Add the user as a member with admin role
       const { error: memberError } = await supabase
         .from("member_households")
         .insert({
@@ -47,18 +57,29 @@ export const CreateHousehold = ({ onBack }: CreateHouseholdProps) => {
           role: "admin",
         });
 
-      if (memberError) throw memberError;
+      if (memberError) {
+        console.error("Member creation error:", memberError);
+        // If adding the member fails, try to clean up the household
+        await supabase
+          .from("households")
+          .delete()
+          .eq("id", household.id);
+        
+        throw new Error(`Failed to add you to household: ${memberError.message}`);
+      }
 
       toast({
         title: "Success!",
         description: "Your household has been created.",
       });
 
+      // Navigate to the dashboard
       navigate("/");
     } catch (error: any) {
+      console.error("Household creation failed:", error);
       toast({
         title: "Error",
-        description: error.message,
+        description: error.message || "Failed to create household. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -92,6 +113,7 @@ export const CreateHousehold = ({ onBack }: CreateHouseholdProps) => {
               placeholder="Enter household name"
               className="animate-scale-in"
               required
+              disabled={isLoading}
             />
           </div>
           <Button 
@@ -99,7 +121,14 @@ export const CreateHousehold = ({ onBack }: CreateHouseholdProps) => {
             className="w-full" 
             disabled={isLoading}
           >
-            {isLoading ? "Creating..." : "Create Household"}
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Creating...
+              </>
+            ) : (
+              "Create Household"
+            )}
           </Button>
         </form>
       </Card>
