@@ -32,6 +32,8 @@ export const generateInviteCode = (): string => {
  * @returns True if the code matches the expected format
  */
 export const validateInviteCode = (code: string): boolean => {
+  if (!code) return false;
+  
   // Code should be 8 characters and only contain A-Z and 2-9
   // Excludes 0, 1, O, I to avoid confusion
   const pattern = /^[A-HJ-NP-Z2-9]{8}$/;
@@ -44,6 +46,8 @@ export const validateInviteCode = (code: string): boolean => {
  * @returns Formatted invite code (e.g., "ABCD-EFGH")
  */
 export const formatInviteCode = (code: string): string => {
+  if (!code) return '';
+  
   const cleanCode = code.toUpperCase().replace(/[^A-Z0-9]/g, '');
   if (cleanCode.length !== 8) return cleanCode;
   return `${cleanCode.slice(0, 4)}-${cleanCode.slice(4)}`;
@@ -55,5 +59,18 @@ export const formatInviteCode = (code: string): string => {
  * @returns Normalized invite code with no hyphens or spaces
  */
 export const normalizeInviteCode = (code: string): string => {
+  if (!code) return '';
   return code.toUpperCase().replace(/[^A-Z0-9]/g, '');
+};
+
+/**
+ * Checks if a string is a valid household name
+ * @param name The household name to validate
+ * @returns True if valid, false otherwise
+ */
+export const isValidHouseholdName = (name: string): boolean => {
+  if (!name) return false;
+  
+  const trimmed = name.trim();
+  return trimmed.length > 0 && trimmed.length <= 50;
 };

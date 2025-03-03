@@ -29,7 +29,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
   const { toast } = useToast();
 
-  const checkHouseholdStatus = async (userId: string) => {
+  const checkHouseholdStatus = async (userId: string): Promise<boolean | null> => {
     try {
       const { data: memberData, error } = await supabase
         .from("member_households")
@@ -42,7 +42,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return null;
       }
 
-      return !!memberData;
+      return !!memberData?.household_id;
     } catch (error) {
       console.error("Unexpected error checking household status:", error);
       return null;
@@ -52,6 +52,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const checkAuth = async () => {
       try {
+        setState(prev => ({ ...prev, loading: true, error: null }));
+        
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
         if (sessionError) {
@@ -97,6 +99,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           hasHousehold: null,
           error: error.message || "Authentication error"
         });
+        
+        toast({
+          title: "Authentication Error",
+          description: error.message || "There was a problem verifying your authentication status",
+          variant: "destructive",
+        });
       }
     };
 
@@ -105,6 +113,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      setState(prev => ({ ...prev, loading: true, error: null }));
+      
       if (session) {
         try {
           const { data: { user }, error: userError } = await supabase.auth.getUser();
@@ -133,6 +143,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             loading: false,
             error: error.message || "Authentication error"
           }));
+          
+          toast({
+            title: "Authentication Error",
+            description: error.message || "There was a problem with your authentication session",
+            variant: "destructive",
+          });
         }
       } else {
         setState({
@@ -152,7 +168,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       setState(prev => ({ ...prev, loading: true, error: null }));
       const { error } = await supabase.auth.signOut();
+      
       if (error) throw error;
+      
+      // Reset state on successful logout
+      setState({
+        user: null,
+        session: null,
+        loading: false,
+        hasHousehold: null,
+        error: null
+      });
+      
+      toast({
+        title: "Signed Out",
+        description: "You have been successfully signed out",
+      });
     } catch (error: any) {
       console.error("Error signing out:", error);
       toast({

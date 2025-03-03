@@ -2,9 +2,9 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/components/ui/use-toast";
-import { supabase } from "@/integrations/supabase/client";
-import { validateInviteCode, normalizeInviteCode } from "@/utils/household";
 import { useAuth } from "@/hooks/use-auth";
+import { householdService } from "@/services/household-service";
+import { validateInviteCode, normalizeInviteCode } from "@/utils/household";
 
 interface JoinHouseholdState {
   inviteCode: string;
@@ -25,7 +25,7 @@ export function useJoinHousehold() {
   
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { refreshHouseholdStatus } = useAuth();
+  const { user, refreshHouseholdStatus } = useAuth();
 
   const setInviteCode = (code: string) => {
     setState(prev => ({
@@ -75,6 +75,16 @@ export function useJoinHousehold() {
     if (!validateInput()) {
       return;
     }
+
+    if (!user) {
+      setState(prev => ({ ...prev, error: "You must be logged in to join a household" }));
+      toast({
+        title: "Authentication Error",
+        description: "You must be logged in to join a household",
+        variant: "destructive",
+      });
+      return;
+    }
     
     setState(prev => ({
       ...prev,
@@ -83,107 +93,19 @@ export function useJoinHousehold() {
     }));
 
     try {
-      // Get current user
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      
-      if (userError) {
-        throw new Error(`Authentication error: ${userError.message}`);
-      }
-      
-      if (!user) {
-        throw new Error("Not authenticated");
-      }
-
       const normalizedCode = normalizeInviteCode(state.inviteCode);
+      const result = await householdService.joinHousehold({
+        inviteCode: normalizedCode,
+        userId: user.id
+      });
       
-      // 1. Verify the invite code exists and is valid
-      const { data: invite, error: inviteError } = await supabase
-        .from("household_invites")
-        .select("household_id, uses_remaining, expires_at")
-        .eq("code", normalizedCode)
-        .single();
-
-      if (inviteError || !invite) {
-        setState(prev => ({
-          ...prev,
-          error: "Invalid or expired invite code"
-        }));
-        throw new Error("Invalid or expired invite code");
-      }
-
-      // Check if the invite is expired
-      if (new Date(invite.expires_at) < new Date()) {
-        setState(prev => ({
-          ...prev,
-          error: "This invite code has expired"
-        }));
-        throw new Error("This invite code has expired");
-      }
-
-      // Check if there are uses remaining
-      if (invite.uses_remaining !== null && invite.uses_remaining <= 0) {
-        setState(prev => ({
-          ...prev,
-          error: "This invite code has reached its usage limit"
-        }));
-        throw new Error("This invite code has reached its usage limit");
-      }
-
-      // 2. Check if user is already a member of this household
-      const { data: existingMembership, error: membershipCheckError } = await supabase
-        .from("member_households")
-        .select("id")
-        .eq("household_id", invite.household_id)
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      if (existingMembership) {
-        setState(prev => ({
-          ...prev,
-          error: "You are already a member of this household"
-        }));
-        throw new Error("You are already a member of this household");
-      }
-
-      // 3. Get the household name for the success message
-      const { data: household, error: householdError } = await supabase
-        .from("households")
-        .select("name")
-        .eq("id", invite.household_id)
-        .single();
-
-      if (householdError) {
-        throw new Error("Could not find the household");
-      }
-
-      // 4. Add the user as a member
-      const { error: memberError } = await supabase
-        .from("member_households")
-        .insert({
-          user_id: user.id,
-          household_id: invite.household_id,
-          role: "member",
-        });
-
-      if (memberError) {
-        console.error("Error joining household:", memberError);
-        throw new Error(`Failed to join household: ${memberError.message}`);
-      }
-
-      // 5. Decrement the uses_remaining if it's not null
-      if (invite.uses_remaining !== null) {
-        await supabase
-          .from("household_invites")
-          .update({ uses_remaining: invite.uses_remaining - 1 })
-          .eq("code", normalizedCode);
-      }
-
       // Success!
       setState(prev => ({
         ...prev,
-        householdName: household.name,
+        householdName: result.householdName,
         step: 'success',
-        isLoading: false
+        isLoading: false,
+        error: null
       }));
       
       // Refresh the household status in the auth context
@@ -191,7 +113,7 @@ export function useJoinHousehold() {
       
       toast({
         title: "Success!",
-        description: `You've joined "${household.name}"`,
+        description: `You've joined "${result.householdName}"`,
       });
       
     } catch (error: any) {

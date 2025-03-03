@@ -2,9 +2,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/components/ui/use-toast";
-import { supabase } from "@/integrations/supabase/client";
-import { generateInviteCode } from "@/utils/household";
 import { useAuth } from "@/hooks/use-auth";
+import { householdService } from "@/services/household-service";
 
 type HouseholdTheme = "default" | "warm" | "cool";
 type CreateHouseholdStep = 'info' | 'success';
@@ -15,6 +14,7 @@ interface CreateHouseholdState {
   isLoading: boolean;
   step: CreateHouseholdStep;
   inviteCode: string;
+  error: string | null;
 }
 
 export function useCreateHousehold() {
@@ -24,14 +24,19 @@ export function useCreateHousehold() {
     isLoading: false,
     step: 'info',
     inviteCode: "",
+    error: null
   });
   
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { refreshHouseholdStatus } = useAuth();
+  const { user, refreshHouseholdStatus } = useAuth();
 
   const setHouseholdName = (name: string) => {
-    setState(prev => ({ ...prev, householdName: name }));
+    setState(prev => ({ 
+      ...prev, 
+      householdName: name,
+      error: null 
+    }));
   };
 
   const setHouseholdTheme = (theme: HouseholdTheme) => {
@@ -42,6 +47,8 @@ export function useCreateHousehold() {
     const trimmedName = state.householdName.trim();
     
     if (!trimmedName) {
+      setState(prev => ({ ...prev, error: "Please enter a household name" }));
+      
       toast({
         title: "Input Required",
         description: "Please enter a household name",
@@ -51,6 +58,8 @@ export function useCreateHousehold() {
     }
     
     if (trimmedName.length > 50) {
+      setState(prev => ({ ...prev, error: "Household name must be 50 characters or less" }));
+      
       toast({
         title: "Input Too Long",
         description: "Household name must be 50 characters or less",
@@ -68,32 +77,37 @@ export function useCreateHousehold() {
     if (!validateHouseholdInput()) {
       return;
     }
+
+    if (!user) {
+      setState(prev => ({ ...prev, error: "You must be logged in to create a household" }));
+      toast({
+        title: "Authentication Error",
+        description: "You must be logged in to create a household",
+        variant: "destructive",
+      });
+      return;
+    }
     
-    setState(prev => ({ ...prev, isLoading: true }));
+    setState(prev => ({ 
+      ...prev, 
+      isLoading: true,
+      error: null
+    }));
 
     try {
-      // Get current user
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      
-      if (userError) {
-        throw new Error(`Authentication error: ${userError.message}`);
-      }
-      
-      if (!user) {
-        throw new Error("Not authenticated");
-      }
-
-      console.log("Creating household for user:", user.id);
-
-      // Create the household within a transaction-like approach
-      const householdResult = await createHouseholdInDb(user.id);
+      const result = await householdService.createHousehold({
+        name: state.householdName.trim(),
+        theme: state.householdTheme,
+        userId: user.id
+      });
       
       // Set success state
       setState(prev => ({
         ...prev,
         step: 'success',
-        inviteCode: householdResult.inviteCode,
-        isLoading: false
+        inviteCode: result.inviteCode,
+        isLoading: false,
+        error: null
       }));
       
       // Refresh the user's household status
@@ -101,94 +115,22 @@ export function useCreateHousehold() {
       
       toast({
         title: "Success!",
-        description: "Your household has been created.",
+        description: "Your household has been created successfully.",
       });
     } catch (error: any) {
       console.error("Household creation failed:", error);
       
-      setState(prev => ({ ...prev, isLoading: false }));
+      setState(prev => ({ 
+        ...prev, 
+        isLoading: false,
+        error: error.message || "Failed to create household. Please try again." 
+      }));
       
       toast({
         title: "Error",
         description: error.message || "Failed to create household. Please try again.",
         variant: "destructive",
       });
-    }
-  };
-
-  const createHouseholdInDb = async (userId: string) => {
-    // Create the household
-    const { data: household, error: householdError } = await supabase
-      .from("households")
-      .insert({
-        name: state.householdName.trim(),
-        created_by: userId,
-        theme: state.householdTheme,
-      })
-      .select("id, name")
-      .single();
-
-    if (householdError) {
-      console.error("Household creation error:", householdError);
-      throw new Error(`Failed to create household: ${householdError.message}`);
-    }
-
-    const householdId = household.id;
-    console.log("Household created:", household);
-
-    try {
-      // Add the user as an admin member
-      const { error: memberError } = await supabase
-        .from("member_households")
-        .insert({
-          user_id: userId,
-          household_id: householdId,
-          role: "admin",
-        });
-
-      if (memberError) {
-        console.error("Member creation error:", memberError);
-        // If adding the member fails, clean up the household
-        await supabase
-          .from("households")
-          .delete()
-          .eq("id", householdId);
-        
-        throw new Error(`Failed to add you to household: ${memberError.message}`);
-      }
-
-      // Generate and create an invite code
-      const generatedInviteCode = generateInviteCode();
-      const { error: inviteError } = await supabase
-        .from("household_invites")
-        .insert({
-          household_id: householdId,
-          code: generatedInviteCode,
-          created_by: userId,
-          expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days from now
-          uses_remaining: 10
-        });
-
-      if (inviteError) {
-        console.error("Invite creation error:", inviteError);
-        // Non-fatal error, just log it
-        toast({
-          title: "Invite Code Issue",
-          description: "Household created but there was an issue generating an invite code.",
-          variant: "default",
-        });
-        return { householdId, inviteCode: "" };
-      }
-
-      return { householdId, inviteCode: generatedInviteCode };
-    } catch (error) {
-      // If any error occurs after household creation, try to clean up
-      await supabase
-        .from("households")
-        .delete()
-        .eq("id", householdId);
-      
-      throw error;
     }
   };
 
@@ -204,6 +146,7 @@ export function useCreateHousehold() {
     isLoading: state.isLoading,
     step: state.step,
     inviteCode: state.inviteCode,
+    error: state.error,
     handleCreateHousehold,
     handleContinue
   };

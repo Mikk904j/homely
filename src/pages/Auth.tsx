@@ -21,6 +21,9 @@ const Auth = () => {
     // Check if user is already authenticated
     const checkAuth = async () => {
       try {
+        setIsLoading(true);
+        setError(null);
+        
         const { data, error: sessionError } = await supabase.auth.getSession();
         
         if (sessionError) {
@@ -60,6 +63,7 @@ const Auth = () => {
       }
     };
 
+    // Initial check
     checkAuth();
 
     // Listen for auth changes

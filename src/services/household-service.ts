@@ -1,219 +1,241 @@
 
 import { supabase } from "@/integrations/supabase/client";
+import { generateInviteCode } from "@/utils/household";
 
-/**
- * Service for Household-related database operations
- */
-export class HouseholdService {
-  /**
-   * Creates a new household
-   * @param name The household name
-   * @param createdBy The user ID of the creator
-   * @param theme The household theme
-   * @returns The created household ID and name
-   */
-  static async createHousehold(name: string, createdBy: string, theme: string) {
-    const { data, error } = await supabase
+export interface CreateHouseholdParams {
+  name: string;
+  theme?: string;
+  userId: string;
+}
+
+export interface HouseholdCreationResult {
+  householdId: string;
+  inviteCode: string;
+}
+
+export interface JoinHouseholdParams {
+  inviteCode: string;
+  userId: string;
+}
+
+export const householdService = {
+  async createHousehold({ name, theme = "default", userId }: CreateHouseholdParams): Promise<HouseholdCreationResult> {
+    if (!name.trim()) {
+      throw new Error("Household name is required");
+    }
+
+    if (!userId) {
+      throw new Error("User ID is required to create a household");
+    }
+
+    // Create the household
+    const { data: household, error: householdError } = await supabase
       .from("households")
       .insert({
         name: name.trim(),
-        created_by: createdBy,
-        theme: theme,
+        created_by: userId,
+        theme,
       })
       .select("id, name")
       .single();
 
-    if (error) {
-      console.error("Error creating household:", error);
-      throw new Error(`Failed to create household: ${error.message}`);
+    if (householdError) {
+      console.error("Household creation error:", householdError);
+      throw new Error(`Failed to create household: ${householdError.message}`);
     }
 
-    return data;
-  }
-
-  /**
-   * Adds a user as a member of a household
-   * @param userId The user ID
-   * @param householdId The household ID
-   * @param role The role of the user (admin or member)
-   */
-  static async addHouseholdMember(userId: string, householdId: string, role: "admin" | "member") {
-    const { error } = await supabase
-      .from("member_households")
-      .insert({
-        user_id: userId,
-        household_id: householdId,
-        role: role,
-      });
-
-    if (error) {
-      console.error("Error adding household member:", error);
-      throw new Error(`Failed to add member to household: ${error.message}`);
-    }
-  }
-
-  /**
-   * Creates a household invite
-   * @param householdId The household ID
-   * @param code The invite code
-   * @param createdBy The user ID of the creator
-   * @param expiresIn The expiration time in milliseconds (default: 7 days)
-   * @param usesRemaining The number of uses allowed (default: 10)
-   */
-  static async createInvite(
-    householdId: string, 
-    code: string, 
-    createdBy: string, 
-    expiresIn: number = 7 * 24 * 60 * 60 * 1000, 
-    usesRemaining: number = 10
-  ) {
-    const expiryDate = new Date(Date.now() + expiresIn).toISOString();
+    const householdId = household.id;
     
-    const { error } = await supabase
-      .from("household_invites")
-      .insert({
-        household_id: householdId,
-        code: code,
-        created_by: createdBy,
-        expires_at: expiryDate,
-        uses_remaining: usesRemaining
-      });
+    try {
+      // Add the user as an admin member
+      const { error: memberError } = await supabase
+        .from("member_households")
+        .insert({
+          user_id: userId,
+          household_id: householdId,
+          role: "admin",
+        });
 
-    if (error) {
-      console.error("Error creating invite:", error);
-      throw new Error(`Failed to create invite: ${error.message}`);
-    }
-  }
-
-  /**
-   * Fetches invite details by code
-   * @param code The invite code
-   * @returns The invite details or null if not found
-   */
-  static async getInviteByCode(code: string) {
-    const { data, error } = await supabase
-      .from("household_invites")
-      .select("*, households(name)")
-      .eq("code", code)
-      .single();
-
-    if (error) {
-      if (error.code === 'PGRST116') {
-        // No rows returned error - invite not found
-        return null;
+      if (memberError) {
+        console.error("Member creation error:", memberError);
+        // Clean up the household if adding the member fails
+        await supabase
+          .from("households")
+          .delete()
+          .eq("id", householdId);
+        
+        throw new Error(`Failed to add you to household: ${memberError.message}`);
       }
+
+      // Generate and create an invite code
+      const generatedInviteCode = generateInviteCode();
+      const { error: inviteError } = await supabase
+        .from("household_invites")
+        .insert({
+          household_id: householdId,
+          code: generatedInviteCode,
+          created_by: userId,
+          expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days from now
+          uses_remaining: 10
+        });
+
+      if (inviteError) {
+        console.error("Invite creation error:", inviteError);
+        // Non-fatal error, continue with empty invite code
+        return { householdId, inviteCode: "" };
+      }
+
+      return { householdId, inviteCode: generatedInviteCode };
+    } catch (error) {
+      // Clean up the household if any error occurs after household creation
+      await supabase
+        .from("households")
+        .delete()
+        .eq("id", householdId);
       
-      console.error("Error fetching invite:", error);
-      throw new Error(`Failed to fetch invite: ${error.message}`);
+      throw error;
+    }
+  },
+
+  async joinHousehold({ inviteCode, userId }: JoinHouseholdParams): Promise<{ householdId: string; householdName: string }> {
+    if (!inviteCode) {
+      throw new Error("Invite code is required");
     }
 
-    return data;
-  }
+    if (!userId) {
+      throw new Error("User ID is required to join a household");
+    }
 
-  /**
-   * Decrements the remaining uses for an invite
-   * @param code The invite code
-   */
-  static async decrementInviteUses(code: string) {
-    const { data: invite, error: fetchError } = await supabase
+    // Verify the invite code
+    const { data: invite, error: inviteError } = await supabase
       .from("household_invites")
-      .select("uses_remaining")
-      .eq("code", code)
+      .select("household_id, uses_remaining, expires_at")
+      .eq("code", inviteCode)
       .single();
 
-    if (fetchError) {
-      console.error("Error fetching invite for decrement:", fetchError);
-      throw new Error(`Failed to update invite usage: ${fetchError.message}`);
+    if (inviteError || !invite) {
+      throw new Error("Invalid or expired invite code");
     }
 
-    if (invite.uses_remaining === null) {
-      return; // Unlimited uses, no need to decrement
+    // Check if the invite is expired
+    if (new Date(invite.expires_at) < new Date()) {
+      throw new Error("This invite code has expired");
     }
 
-    if (invite.uses_remaining <= 0) {
-      throw new Error("This invite has no uses remaining");
+    // Check if there are uses remaining
+    if (invite.uses_remaining !== null && invite.uses_remaining <= 0) {
+      throw new Error("This invite code has reached its usage limit");
     }
 
-    const { error: updateError } = await supabase
-      .from("household_invites")
-      .update({ uses_remaining: invite.uses_remaining - 1 })
-      .eq("code", code);
-
-    if (updateError) {
-      console.error("Error updating invite uses:", updateError);
-      throw new Error(`Failed to update invite usage: ${updateError.message}`);
-    }
-  }
-
-  /**
-   * Checks if a user is already a member of a household
-   * @param userId The user ID
-   * @param householdId The household ID
-   * @returns True if the user is a member
-   */
-  static async isUserMemberOfHousehold(userId: string, householdId: string) {
-    const { data, error } = await supabase
+    // Check if user is already a member of this household
+    const { data: existingMembership } = await supabase
       .from("member_households")
       .select("id")
-      .eq("household_id", householdId)
+      .eq("household_id", invite.household_id)
       .eq("user_id", userId)
       .maybeSingle();
 
-    if (error) {
-      console.error("Error checking household membership:", error);
-      throw new Error(`Failed to check membership: ${error.message}`);
+    if (existingMembership) {
+      throw new Error("You are already a member of this household");
     }
 
-    return !!data;
-  }
-
-  /**
-   * Gets household details
-   * @param householdId The household ID
-   * @returns The household details
-   */
-  static async getHouseholdDetails(householdId: string) {
-    const { data, error } = await supabase
+    // Get the household name
+    const { data: household, error: householdError } = await supabase
       .from("households")
-      .select("*")
-      .eq("id", householdId)
+      .select("name")
+      .eq("id", invite.household_id)
       .single();
 
-    if (error) {
-      console.error("Error fetching household details:", error);
-      throw new Error(`Failed to fetch household: ${error.message}`);
+    if (householdError) {
+      throw new Error("Could not find the household");
     }
 
-    return data;
-  }
-
-  /**
-   * Gets all households a user is a member of
-   * @param userId The user ID
-   * @returns Array of households with membership details
-   */
-  static async getUserHouseholds(userId: string) {
-    const { data, error } = await supabase
+    // Add the user as a member
+    const { error: memberError } = await supabase
       .from("member_households")
+      .insert({
+        user_id: userId,
+        household_id: invite.household_id,
+        role: "member",
+      });
+
+    if (memberError) {
+      console.error("Error joining household:", memberError);
+      throw new Error(`Failed to join household: ${memberError.message}`);
+    }
+
+    // Decrement the uses_remaining if it's not null
+    if (invite.uses_remaining !== null) {
+      await supabase
+        .from("household_invites")
+        .update({ uses_remaining: invite.uses_remaining - 1 })
+        .eq("code", inviteCode);
+    }
+
+    return { 
+      householdId: invite.household_id, 
+      householdName: household.name 
+    };
+  },
+
+  async getHouseholdMembers(householdId: string) {
+    if (!householdId) {
+      throw new Error("Household ID is required");
+    }
+
+    const { data, error } = await supabase
+      .from('member_households')
       .select(`
-        id, 
-        role,
+        id,
+        user_id,
         household_id,
-        households (
-          id, 
-          name, 
-          created_at, 
-          created_by,
-          theme
+        role,
+        created_at,
+        updated_at,
+        profile:profiles (
+          first_name,
+          last_name,
+          phone,
+          avatar_url,
+          status
         )
       `)
-      .eq("user_id", userId);
+      .eq('household_id', householdId)
+      .order('created_at');
 
     if (error) {
-      console.error("Error fetching user households:", error);
-      throw new Error(`Failed to fetch households: ${error.message}`);
+      console.error("Error fetching household members:", error);
+      throw new Error(`Failed to fetch household members: ${error.message}`);
     }
 
     return data;
+  },
+
+  async getCurrentUserHousehold() {
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      throw new Error("User not authenticated");
+    }
+
+    const { data, error } = await supabase
+      .from('member_households')
+      .select(`
+        household_id,
+        household:households (
+          id,
+          name,
+          created_at
+        )
+      `)
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (error) {
+      console.error("Error fetching user household:", error);
+      throw new Error(`Failed to fetch user household: ${error.message}`);
+    }
+
+    return data?.household || null;
   }
-}
+};
