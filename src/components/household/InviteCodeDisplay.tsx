@@ -23,12 +23,21 @@ export const InviteCodeDisplay = ({
 
   const formattedCode = formatInviteCode(inviteCode);
 
-  const copyInviteCode = () => {
-    navigator.clipboard.writeText(inviteCode);
-    toast({
-      title: "Copied!",
-      description: "Invite code copied to clipboard",
-    });
+  const copyInviteCode = async () => {
+    try {
+      await navigator.clipboard.writeText(inviteCode);
+      toast({
+        title: "Copied!",
+        description: "Invite code copied to clipboard",
+      });
+    } catch (error) {
+      console.error("Failed to copy:", error);
+      toast({
+        title: "Copy failed",
+        description: "Could not copy to clipboard. Try selecting and copying manually.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (

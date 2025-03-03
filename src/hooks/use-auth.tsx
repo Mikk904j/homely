@@ -9,6 +9,7 @@ interface AuthState {
   session: Session | null;
   loading: boolean;
   hasHousehold: boolean | null;
+  error: string | null;
 }
 
 interface AuthContextType extends AuthState {
@@ -24,6 +25,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     session: null,
     loading: true,
     hasHousehold: null,
+    error: null
   });
   const { toast } = useToast();
 
@@ -50,10 +52,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError) {
+          throw sessionError;
+        }
         
         if (session) {
-          const { data: { user } } = await supabase.auth.getUser();
+          const { data: { user }, error: userError } = await supabase.auth.getUser();
+          
+          if (userError) {
+            throw userError;
+          }
           
           if (!user) {
             throw new Error("Session exists but no user found");
@@ -67,6 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             session,
             loading: false,
             hasHousehold,
+            error: null
           });
         } else {
           setState({
@@ -74,20 +85,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             session: null,
             loading: false,
             hasHousehold: null,
+            error: null
           });
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error("Error checking auth state:", error);
-        toast({
-          title: "Authentication Error",
-          description: "Failed to verify your login status. Please try refreshing the page.",
-          variant: "destructive",
-        });
         setState({
           user: null,
           session: null,
           loading: false,
           hasHousehold: null,
+          error: error.message || "Authentication error"
         });
       }
     };
@@ -98,27 +106,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session) {
-        const { data: { user } } = await supabase.auth.getUser();
-        
-        if (!user) {
-          console.error("Session exists but no user found during auth state change");
-          return;
+        try {
+          const { data: { user }, error: userError } = await supabase.auth.getUser();
+          
+          if (userError) {
+            throw userError;
+          }
+          
+          if (!user) {
+            throw new Error("Session exists but no user found during auth state change");
+          }
+
+          const hasHousehold = await checkHouseholdStatus(user.id);
+
+          setState({
+            user,
+            session,
+            loading: false,
+            hasHousehold,
+            error: null
+          });
+        } catch (error: any) {
+          console.error("Error during auth state change:", error);
+          setState(prev => ({
+            ...prev,
+            loading: false,
+            error: error.message || "Authentication error"
+          }));
         }
-
-        const hasHousehold = await checkHouseholdStatus(user.id);
-
-        setState({
-          user,
-          session,
-          loading: false,
-          hasHousehold,
-        });
       } else {
         setState({
           user: null,
           session: null,
           loading: false,
           hasHousehold: null,
+          error: null
         });
       }
     });
@@ -128,15 +150,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     try {
+      setState(prev => ({ ...prev, loading: true, error: null }));
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error signing out:", error);
       toast({
         title: "Sign Out Error",
         description: "There was a problem signing you out. Please try again.",
         variant: "destructive",
       });
+      setState(prev => ({ 
+        ...prev, 
+        loading: false, 
+        error: error.message || "Failed to sign out" 
+      }));
     }
   };
 
@@ -144,19 +172,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!state.user) return;
     
     try {
+      setState(prev => ({ ...prev, loading: true, error: null }));
       const hasHousehold = await checkHouseholdStatus(state.user.id);
       
       setState(prev => ({
         ...prev,
-        hasHousehold
+        hasHousehold,
+        loading: false
       }));
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error refreshing household status:", error);
       toast({
         title: "Error",
         description: "Failed to refresh your household status. Please try again.",
         variant: "destructive",
       });
+      setState(prev => ({ 
+        ...prev, 
+        loading: false, 
+        error: error.message || "Failed to refresh household status" 
+      }));
     }
   };
 

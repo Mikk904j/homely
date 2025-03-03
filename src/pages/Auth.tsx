@@ -6,30 +6,56 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LoginForm } from "@/components/auth/LoginForm";
 import { RegisterForm } from "@/components/auth/RegisterForm";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2 } from "lucide-react";
+import { Loading } from "@/components/ui/loading";
+import { useToast } from "@/components/ui/use-toast";
+import { AlertCircle } from "lucide-react";
 
 const Auth = () => {
   const [activeTab, setActiveTab] = useState<"login" | "register">("login");
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
+  const { toast } = useToast();
 
   useEffect(() => {
     // Check if user is already authenticated
     const checkAuth = async () => {
       try {
-        const { data } = await supabase.auth.getSession();
-        if (data.session) {
-          // User is already logged in, redirect to appropriate page
-          const { data: memberData } = await supabase
-            .from('member_households')
-            .select('household_id')
-            .maybeSingle();
-
-          navigate(memberData?.household_id ? "/" : "/household-setup");
+        const { data, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError) {
+          throw sessionError;
         }
-      } catch (error) {
-        console.error("Error checking authentication:", error);
-      } finally {
+
+        if (data.session) {
+          // User is already logged in, check if they have a household
+          try {
+            const { data: memberData, error: memberError } = await supabase
+              .from('member_households')
+              .select('household_id')
+              .eq('user_id', data.session.user.id)
+              .maybeSingle();
+
+            if (memberError) {
+              console.error("Error checking household:", memberError);
+              // Continue to auth page if we can't check household status
+              setIsLoading(false);
+              return;
+            }
+
+            // Redirect based on household status
+            navigate(memberData?.household_id ? "/" : "/household-setup");
+          } catch (err) {
+            console.error("Error in household check:", err);
+            setIsLoading(false);
+          }
+        } else {
+          // No active session, just show the auth page
+          setIsLoading(false);
+        }
+      } catch (err: any) {
+        console.error("Auth check error:", err);
+        setError(err.message || "Failed to verify authentication status");
         setIsLoading(false);
       }
     };
@@ -39,7 +65,7 @@ const Auth = () => {
     // Listen for auth changes
     const { data: authListener } = supabase.auth.onAuthStateChange((event) => {
       if (event === "SIGNED_IN") {
-        // Will redirect in the useEffect above
+        // Will handle the redirection
         checkAuth();
       }
     });
@@ -51,12 +77,27 @@ const Auth = () => {
   }, [navigate]);
 
   if (isLoading) {
+    return <Loading fullScreen text="Checking authentication status..." />;
+  }
+
+  if (error) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-          <p>Loading...</p>
-        </div>
+      <div className="flex items-center justify-center min-h-screen p-4">
+        <Card className="w-full max-w-md p-6">
+          <div className="flex flex-col items-center text-center space-y-4">
+            <div className="p-3 bg-red-100 rounded-full">
+              <AlertCircle className="h-6 w-6 text-red-600" />
+            </div>
+            <h2 className="text-xl font-semibold">Authentication Error</h2>
+            <p className="text-muted-foreground">{error}</p>
+            <button 
+              className="px-4 py-2 bg-primary text-primary-foreground rounded-md"
+              onClick={() => window.location.reload()}
+            >
+              Try Again
+            </button>
+          </div>
+        </Card>
       </div>
     );
   }
