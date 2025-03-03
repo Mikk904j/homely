@@ -1,10 +1,12 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { Session, User } from "@supabase/supabase-js";
+import { useToast } from "@/components/ui/use-toast";
 
 interface AuthState {
-  user: any;
-  session: any;
+  user: User | null;
+  session: Session | null;
   loading: boolean;
   hasHousehold: boolean | null;
 }
@@ -23,6 +25,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loading: true,
     hasHousehold: null,
   });
+  const { toast } = useToast();
+
+  const checkHouseholdStatus = async (userId: string) => {
+    try {
+      const { data: memberData, error } = await supabase
+        .from("member_households")
+        .select("household_id")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      if (error) {
+        console.error("Error checking household status:", error);
+        return null;
+      }
+
+      return !!memberData;
+    } catch (error) {
+      console.error("Unexpected error checking household status:", error);
+      return null;
+    }
+  };
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -32,17 +55,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (session) {
           const { data: { user } } = await supabase.auth.getUser();
           
+          if (!user) {
+            throw new Error("Session exists but no user found");
+          }
+
           // Check if user has a household
-          const { data: memberData } = await supabase
-            .from("member_households")
-            .select("household_id")
-            .maybeSingle();
+          const hasHousehold = await checkHouseholdStatus(user.id);
 
           setState({
             user,
             session,
             loading: false,
-            hasHousehold: !!memberData,
+            hasHousehold,
           });
         } else {
           setState({
@@ -54,6 +78,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       } catch (error) {
         console.error("Error checking auth state:", error);
+        toast({
+          title: "Authentication Error",
+          description: "Failed to verify your login status. Please try refreshing the page.",
+          variant: "destructive",
+        });
         setState({
           user: null,
           session: null,
@@ -71,16 +100,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (session) {
         const { data: { user } } = await supabase.auth.getUser();
         
-        const { data: memberData } = await supabase
-          .from("member_households")
-          .select("household_id")
-          .maybeSingle();
+        if (!user) {
+          console.error("Session exists but no user found during auth state change");
+          return;
+        }
+
+        const hasHousehold = await checkHouseholdStatus(user.id);
 
         setState({
           user,
           session,
           loading: false,
-          hasHousehold: !!memberData,
+          hasHousehold,
         });
       } else {
         setState({
@@ -93,27 +124,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [toast]);
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+    } catch (error) {
+      console.error("Error signing out:", error);
+      toast({
+        title: "Sign Out Error",
+        description: "There was a problem signing you out. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const refreshHouseholdStatus = async () => {
     if (!state.user) return;
     
     try {
-      const { data: memberData } = await supabase
-        .from("member_households")
-        .select("household_id")
-        .maybeSingle();
-
+      const hasHousehold = await checkHouseholdStatus(state.user.id);
+      
       setState(prev => ({
         ...prev,
-        hasHousehold: !!memberData
+        hasHousehold
       }));
     } catch (error) {
       console.error("Error refreshing household status:", error);
+      toast({
+        title: "Error",
+        description: "Failed to refresh your household status. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 

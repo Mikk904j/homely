@@ -1,9 +1,9 @@
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { useToast } from "@/components/ui/use-toast";
-import { CheckCircle, Copy } from "lucide-react";
+import { CheckCircle } from "lucide-react";
 import { motion } from "framer-motion";
+import { InviteCodeDisplay } from "./InviteCodeDisplay";
 
 interface SuccessScreenProps {
   householdName: string;
@@ -12,16 +12,6 @@ interface SuccessScreenProps {
 }
 
 export const SuccessScreen = ({ householdName, inviteCode, onContinue }: SuccessScreenProps) => {
-  const { toast } = useToast();
-
-  const copyInviteCode = () => {
-    navigator.clipboard.writeText(inviteCode);
-    toast({
-      title: "Copied!",
-      description: "Invite code copied to clipboard",
-    });
-  };
-
   return (
     <div className="container max-w-lg mx-auto pt-8 px-4">
       <motion.div
@@ -40,15 +30,12 @@ export const SuccessScreen = ({ householdName, inviteCode, onContinue }: Success
             </p>
 
             {inviteCode && (
-              <div className="bg-muted p-4 rounded-md mb-6 w-full">
-                <p className="text-sm text-muted-foreground mb-2">Share this code with others to invite them:</p>
-                <div className="flex items-center justify-between bg-background border rounded-md p-2">
-                  <span className="font-mono text-lg tracking-wider px-2">{inviteCode}</span>
-                  <Button variant="ghost" size="sm" onClick={copyInviteCode}>
-                    <Copy className="h-4 w-4" />
-                  </Button>
-                </div>
-                <p className="text-xs text-muted-foreground mt-2">This code can be used 10 times and expires in 7 days</p>
+              <div className="mb-6 w-full">
+                <InviteCodeDisplay 
+                  inviteCode={inviteCode} 
+                  expiryDays={7} 
+                  usesRemaining={10} 
+                />
               </div>
             )}
 

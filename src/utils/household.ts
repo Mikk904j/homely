@@ -8,8 +8,52 @@ export const generateInviteCode = (): string => {
   // Excludes confusing characters like 0, O, 1, I
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let result = '';
-  for (let i = 0; i < 8; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  
+  // Use crypto API if available for better randomness
+  if (window.crypto && window.crypto.getRandomValues) {
+    const values = new Uint8Array(8);
+    window.crypto.getRandomValues(values);
+    for (let i = 0; i < 8; i++) {
+      result += chars.charAt(values[i] % chars.length);
+    }
+  } else {
+    // Fallback to Math.random
+    for (let i = 0; i < 8; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
   }
+  
   return result;
+};
+
+/**
+ * Validates a household invite code format
+ * @param code The invite code to validate
+ * @returns True if the code matches the expected format
+ */
+export const validateInviteCode = (code: string): boolean => {
+  // Code should be 8 characters and only contain A-Z and 2-9
+  // Excludes 0, 1, O, I to avoid confusion
+  const pattern = /^[A-HJ-NP-Z2-9]{8}$/;
+  return pattern.test(code.toUpperCase());
+};
+
+/**
+ * Formats an invite code for display by adding a hyphen in the middle
+ * @param code The invite code to format
+ * @returns Formatted invite code (e.g., "ABCD-EFGH")
+ */
+export const formatInviteCode = (code: string): string => {
+  const cleanCode = code.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (cleanCode.length !== 8) return cleanCode;
+  return `${cleanCode.slice(0, 4)}-${cleanCode.slice(4)}`;
+};
+
+/**
+ * Normalizes an invite code by removing formatting
+ * @param code The invite code to normalize
+ * @returns Normalized invite code with no hyphens or spaces
+ */
+export const normalizeInviteCode = (code: string): string => {
+  return code.toUpperCase().replace(/[^A-Z0-9]/g, '');
 };

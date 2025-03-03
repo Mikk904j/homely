@@ -1,143 +1,28 @@
 
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { useToast } from "@/components/ui/use-toast";
-import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, CheckCircle, Loader2, Users } from "lucide-react";
 import { Label } from "@/components/ui/label";
+import { ArrowLeft, CheckCircle, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
+import { useJoinHousehold } from "@/hooks/use-join-household";
+import { formatInviteCode } from "@/utils/household";
 
 interface JoinHouseholdProps {
   onBack: () => void;
 }
 
 export const JoinHousehold = ({ onBack }: JoinHouseholdProps) => {
-  const [inviteCode, setInviteCode] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [step, setStep] = useState<'form' | 'success'>('form');
-  const [householdName, setHouseholdName] = useState("");
-  const { toast } = useToast();
-  const navigate = useNavigate();
-
-  const handleJoinHousehold = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!inviteCode.trim()) {
-      toast({
-        title: "Input Required",
-        description: "Please enter an invite code",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    setIsLoading(true);
-
-    try {
-      // Get current user
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      
-      if (userError) {
-        throw new Error(`Authentication error: ${userError.message}`);
-      }
-      
-      if (!user) {
-        throw new Error("Not authenticated");
-      }
-
-      // 1. Verify the invite code exists and is valid
-      const { data: invite, error: inviteError } = await supabase
-        .from("household_invites")
-        .select("household_id, uses_remaining, expires_at")
-        .eq("code", inviteCode.toUpperCase().trim())
-        .single();
-
-      if (inviteError || !invite) {
-        throw new Error("Invalid or expired invite code");
-      }
-
-      // Check if the invite is expired
-      if (new Date(invite.expires_at) < new Date()) {
-        throw new Error("This invite code has expired");
-      }
-
-      // Check if there are uses remaining
-      if (invite.uses_remaining !== null && invite.uses_remaining <= 0) {
-        throw new Error("This invite code has reached its usage limit");
-      }
-
-      // 2. Check if user is already a member of this household
-      const { data: existingMembership, error: membershipCheckError } = await supabase
-        .from("member_households")
-        .select("id")
-        .eq("household_id", invite.household_id)
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      if (existingMembership) {
-        throw new Error("You are already a member of this household");
-      }
-
-      // 3. Get the household name for the success message
-      const { data: household, error: householdError } = await supabase
-        .from("households")
-        .select("name")
-        .eq("id", invite.household_id)
-        .single();
-
-      if (householdError) {
-        throw new Error("Could not find the household");
-      }
-
-      // 4. Add the user as a member
-      const { error: memberError } = await supabase
-        .from("member_households")
-        .insert({
-          user_id: user.id,
-          household_id: invite.household_id,
-          role: "member",
-        });
-
-      if (memberError) {
-        console.error("Error joining household:", memberError);
-        throw new Error(`Failed to join household: ${memberError.message}`);
-      }
-
-      // 5. Decrement the uses_remaining if it's not null
-      if (invite.uses_remaining !== null) {
-        await supabase
-          .from("household_invites")
-          .update({ uses_remaining: invite.uses_remaining - 1 })
-          .eq("code", inviteCode.toUpperCase().trim());
-      }
-
-      // Success!
-      setHouseholdName(household.name);
-      toast({
-        title: "Success!",
-        description: `You've joined "${household.name}"`,
-      });
-
-      // Show success screen
-      setStep('success');
-      
-    } catch (error: any) {
-      console.error("Error joining household:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to join household. Please check your invite code and try again.",
-        variant: "destructive",
-      });
-      setIsLoading(false);
-    }
-  };
-
-  const handleContinue = () => {
-    navigate("/");
-  };
+  const {
+    inviteCode,
+    setInviteCode,
+    isLoading,
+    step,
+    householdName,
+    error,
+    handleJoinHousehold,
+    handleContinue
+  } = useJoinHousehold();
 
   if (step === 'success') {
     return (
@@ -165,6 +50,13 @@ export const JoinHousehold = ({ onBack }: JoinHouseholdProps) => {
       </div>
     );
   }
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Allow user to type with or without formatting
+    setInviteCode(e.target.value);
+  };
+
+  const displayValue = inviteCode ? formatInviteCode(inviteCode) : '';
 
   return (
     <div className="container max-w-lg mx-auto pt-8 px-4">
@@ -194,17 +86,23 @@ export const JoinHousehold = ({ onBack }: JoinHouseholdProps) => {
                 <Label htmlFor="inviteCode">Invite Code</Label>
                 <Input
                   id="inviteCode"
-                  value={inviteCode}
-                  onChange={(e) => setInviteCode(e.target.value)}
-                  placeholder="Enter invite code (e.g. ABC123D4)"
-                  className="animate-scale-in uppercase"
+                  value={displayValue}
+                  onChange={handleInputChange}
+                  placeholder="Enter invite code (e.g. ABCD-1234)"
+                  className="animate-scale-in uppercase tracking-wider text-center font-mono"
                   required
                   disabled={isLoading}
-                  maxLength={10}
+                  maxLength={9} // 8 chars + potential hyphen
+                  aria-invalid={!!error}
                 />
                 <p className="text-xs text-muted-foreground">
                   Enter the code exactly as it was shared with you
                 </p>
+                {error && (
+                  <p className="text-sm text-destructive">
+                    {error}
+                  </p>
+                )}
               </div>
               <Button 
                 type="submit" 
