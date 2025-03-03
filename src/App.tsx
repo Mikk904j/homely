@@ -3,9 +3,10 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { useEffect, useState } from "react";
-import { supabase } from "./integrations/supabase/client";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { AuthProvider, useAuth } from "./hooks/use-auth";
+import { Loading } from "./components/ui/loading";
+import { AnimatePresence, motion } from "framer-motion";
 import Index from "./pages/Index";
 import Shopping from "./pages/Shopping";
 import Calendar from "./pages/Calendar";
@@ -16,170 +17,128 @@ import Auth from "./pages/Auth";
 import HouseholdSetup from "./pages/HouseholdSetup";
 import NotFound from "./pages/NotFound";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+      retry: 1,
+      staleTime: 5 * 60 * 1000, // 5 minutes
+    },
+  },
+});
 
-interface AuthState {
-  session: any;
-  loading: boolean;
-  hasHousehold: boolean | null;
+interface PrivateRouteProps {
+  children: React.ReactNode; 
+  requireHousehold?: boolean;
 }
 
-const PrivateRoute = ({ children, requireHousehold = true }: { children: React.ReactNode, requireHousehold?: boolean }) => {
-  const [authState, setAuthState] = useState<AuthState>({
-    session: null,
-    loading: true,
-    hasHousehold: null,
-  });
+const PrivateRoute = ({ children, requireHousehold = true }: PrivateRouteProps) => {
+  const { user, loading, hasHousehold } = useAuth();
+  const location = useLocation();
 
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        
-        if (session) {
-          // Check if user has a household
-          const { data: memberData } = await supabase
-            .from("member_households")
-            .select("household_id")
-            .single();
-
-          setAuthState({
-            session,
-            loading: false,
-            hasHousehold: !!memberData,
-          });
-        } else {
-          setAuthState({
-            session: null,
-            loading: false,
-            hasHousehold: null,
-          });
-        }
-      } catch (error) {
-        console.error("Error checking auth state:", error);
-        setAuthState({
-          session: null,
-          loading: false,
-          hasHousehold: null,
-        });
-      }
-    };
-
-    checkAuth();
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (session) {
-        const { data: memberData } = await supabase
-          .from("member_households")
-          .select("household_id")
-          .single();
-
-        setAuthState({
-          session,
-          loading: false,
-          hasHousehold: !!memberData,
-        });
-      } else {
-        setAuthState({
-          session: null,
-          loading: false,
-          hasHousehold: null,
-        });
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  if (authState.loading) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="animate-pulse text-lg">Loading...</div>
-      </div>
-    );
+  if (loading) {
+    return <Loading fullScreen />;
   }
 
-  if (!authState.session) {
-    return <Navigate to="/auth" replace />;
+  if (!user) {
+    return <Navigate to="/auth" state={{ from: location }} replace />;
   }
 
-  if (requireHousehold && !authState.hasHousehold) {
+  if (requireHousehold && !hasHousehold) {
     return <Navigate to="/household-setup" replace />;
   }
 
-  return children;
+  return (
+    <AnimatePresence mode="wait">
+      <motion.div
+        key={location.pathname}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.2 }}
+      >
+        {children}
+      </motion.div>
+    </AnimatePresence>
+  );
+};
+
+const AppRoutes = () => {
+  return (
+    <Routes>
+      <Route
+        path="/"
+        element={
+          <PrivateRoute>
+            <Index />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/shopping"
+        element={
+          <PrivateRoute>
+            <Shopping />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/calendar"
+        element={
+          <PrivateRoute>
+            <Calendar />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/tickets"
+        element={
+          <PrivateRoute>
+            <Tickets />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/members"
+        element={
+          <PrivateRoute>
+            <Members />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/settings"
+        element={
+          <PrivateRoute>
+            <Settings />
+          </PrivateRoute>
+        }
+      />
+      <Route 
+        path="/household-setup" 
+        element={
+          <PrivateRoute requireHousehold={false}>
+            <HouseholdSetup />
+          </PrivateRoute>
+        } 
+      />
+      <Route path="/auth" element={<Auth />} />
+      <Route path="*" element={<NotFound />} />
+    </Routes>
+  );
 };
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route
-            path="/"
-            element={
-              <PrivateRoute>
-                <Index />
-              </PrivateRoute>
-            }
-          />
-          <Route
-            path="/shopping"
-            element={
-              <PrivateRoute>
-                <Shopping />
-              </PrivateRoute>
-            }
-          />
-          <Route
-            path="/calendar"
-            element={
-              <PrivateRoute>
-                <Calendar />
-              </PrivateRoute>
-            }
-          />
-          <Route
-            path="/tickets"
-            element={
-              <PrivateRoute>
-                <Tickets />
-              </PrivateRoute>
-            }
-          />
-          <Route
-            path="/members"
-            element={
-              <PrivateRoute>
-                <Members />
-              </PrivateRoute>
-            }
-          />
-          <Route
-            path="/settings"
-            element={
-              <PrivateRoute>
-                <Settings />
-              </PrivateRoute>
-            }
-          />
-          <Route 
-            path="/household-setup" 
-            element={
-              <PrivateRoute requireHousehold={false}>
-                <HouseholdSetup />
-              </PrivateRoute>
-            } 
-          />
-          <Route path="/auth" element={<Auth />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
+    <AuthProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <AppRoutes />
+        </BrowserRouter>
+      </TooltipProvider>
+    </AuthProvider>
   </QueryClientProvider>
 );
 

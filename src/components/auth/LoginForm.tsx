@@ -1,11 +1,18 @@
 
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2 } from "lucide-react";
+import { Loader2, AlertCircle } from "lucide-react";
+import { z } from "zod";
+import { useAuth } from "@/hooks/use-auth";
+
+const loginSchema = z.object({
+  email: z.string().email("Please enter a valid email address"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+});
 
 export const LoginForm = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -13,18 +20,35 @@ export const LoginForm = () => {
     email: "",
     password: "",
   });
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const { toast } = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
+  const { refreshHouseholdStatus } = useAuth();
+
+  const validateForm = () => {
+    try {
+      loginSchema.parse(formData);
+      setErrors({});
+      return true;
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const newErrors: Record<string, string> = {};
+        error.errors.forEach((err) => {
+          if (err.path[0]) {
+            newErrors[err.path[0] as string] = err.message;
+          }
+        });
+        setErrors(newErrors);
+      }
+      return false;
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.email || !formData.password) {
-      toast({
-        title: "Missing information",
-        description: "Please fill in all fields",
-        variant: "destructive",
-      });
+    if (!validateForm()) {
       return;
     }
     
@@ -39,46 +63,16 @@ export const LoginForm = () => {
       if (error) throw error;
 
       // Check if user has a household
-      try {
-        const { data: memberData, error: memberError } = await supabase
-          .from('member_households')
-          .select('household_id')
-          .maybeSingle();
+      await refreshHouseholdStatus();
 
-        if (memberError) {
-          console.error('Error checking household membership:', memberError);
-          // Still allow login with a warning about household status
-          toast({
-            title: "Logged in with warning",
-            description: "Your household information couldn't be retrieved",
-            variant: "destructive",
-          });
-          navigate("/household-setup");
-          return;
-        }
-
-        // Navigate based on household membership
-        if (memberData?.household_id) {
-          navigate("/");
-          toast({
-            title: "Welcome back!",
-            description: "Successfully logged in",
-          });
-        } else {
-          navigate("/household-setup");
-          toast({
-            title: "Welcome!",
-            description: "Please set up or join a household",
-          });
-        }
-      } catch (memberCheckError) {
-        console.error('Unexpected error checking membership:', memberCheckError);
-        navigate("/household-setup");
-        toast({
-          title: "Logged in with warning",
-          description: "Your household information couldn't be verified",
-        });
-      }
+      // Get the redirect path from location state or default to home
+      const from = (location.state as any)?.from?.pathname || "/";
+      
+      navigate(from, { replace: true });
+      toast({
+        title: "Welcome back!",
+        description: "Successfully logged in",
+      });
     } catch (error: any) {
       let errorMessage = "Check your email and password";
       
@@ -115,7 +109,14 @@ export const LoginForm = () => {
           }
           placeholder="Enter your email"
           disabled={isLoading}
+          className={errors.email ? "border-red-300" : ""}
         />
+        {errors.email && (
+          <div className="flex items-center text-red-500 text-sm mt-1">
+            <AlertCircle className="h-4 w-4 mr-1" />
+            {errors.email}
+          </div>
+        )}
       </div>
       <div className="space-y-2">
         <label className="text-sm font-medium">Password</label>
@@ -129,7 +130,14 @@ export const LoginForm = () => {
           placeholder="Enter your password"
           disabled={isLoading}
           minLength={6}
+          className={errors.password ? "border-red-300" : ""}
         />
+        {errors.password && (
+          <div className="flex items-center text-red-500 text-sm mt-1">
+            <AlertCircle className="h-4 w-4 mr-1" />
+            {errors.password}
+          </div>
+        )}
       </div>
       <Button type="submit" className="w-full" disabled={isLoading}>
         {isLoading ? (
