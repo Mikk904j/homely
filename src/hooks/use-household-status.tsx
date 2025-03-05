@@ -37,7 +37,8 @@ export function HouseholdStatusProvider({ children }: { children: ReactNode }) {
         return null;
       }
 
-      return data;
+      // The function returns a boolean directly
+      return data as boolean;
     } catch (error) {
       console.error("Unexpected error checking household status:", error);
       return null;
