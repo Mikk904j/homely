@@ -9,20 +9,22 @@ import { supabase } from "@/integrations/supabase/client";
 import { Loading } from "@/components/ui/loading";
 import { useToast } from "@/components/ui/use-toast";
 import { AlertCircle } from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
 
 const Auth = () => {
   const [activeTab, setActiveTab] = useState<"login" | "register">("login");
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [localLoading, setLocalLoading] = useState(true);
+  const [localError, setLocalError] = useState<string | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user, hasHousehold } = useAuth();
 
   useEffect(() => {
     // Check if user is already authenticated
     const checkAuth = async () => {
       try {
-        setIsLoading(true);
-        setError(null);
+        setLocalLoading(true);
+        setLocalError(null);
         
         const { data, error: sessionError } = await supabase.auth.getSession();
         
@@ -42,7 +44,7 @@ const Auth = () => {
             if (memberError) {
               console.error("Error checking household:", memberError);
               // Continue to auth page if we can't check household status
-              setIsLoading(false);
+              setLocalLoading(false);
               return;
             }
 
@@ -50,16 +52,16 @@ const Auth = () => {
             navigate(memberData?.household_id ? "/" : "/household-setup");
           } catch (err) {
             console.error("Error in household check:", err);
-            setIsLoading(false);
+            setLocalLoading(false);
           }
         } else {
           // No active session, just show the auth page
-          setIsLoading(false);
+          setLocalLoading(false);
         }
       } catch (err: any) {
         console.error("Auth check error:", err);
-        setError(err.message || "Failed to verify authentication status");
-        setIsLoading(false);
+        setLocalError(err.message || "Failed to verify authentication status");
+        setLocalLoading(false);
       }
     };
 
@@ -80,11 +82,18 @@ const Auth = () => {
     };
   }, [navigate]);
 
-  if (isLoading) {
+  // If the user is already authenticated in our auth hook, redirect them
+  useEffect(() => {
+    if (user) {
+      navigate(hasHousehold ? "/" : "/household-setup");
+    }
+  }, [user, hasHousehold, navigate]);
+
+  if (localLoading) {
     return <Loading fullScreen text="Checking authentication status..." />;
   }
 
-  if (error) {
+  if (localError) {
     return (
       <div className="flex items-center justify-center min-h-screen p-4">
         <Card className="w-full max-w-md p-6">
@@ -93,7 +102,7 @@ const Auth = () => {
               <AlertCircle className="h-6 w-6 text-red-600" />
             </div>
             <h2 className="text-xl font-semibold">Authentication Error</h2>
-            <p className="text-muted-foreground">{error}</p>
+            <p className="text-muted-foreground">{localError}</p>
             <button 
               className="px-4 py-2 bg-primary text-primary-foreground rounded-md"
               onClick={() => window.location.reload()}

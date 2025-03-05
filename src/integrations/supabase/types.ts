@@ -98,6 +98,7 @@ export type Database = {
           created_by: string | null
           id: string
           name: string
+          theme: string | null
           updated_at: string | null
         }
         Insert: {
@@ -105,6 +106,7 @@ export type Database = {
           created_by?: string | null
           id?: string
           name: string
+          theme?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -112,6 +114,7 @@ export type Database = {
           created_by?: string | null
           id?: string
           name?: string
+          theme?: string | null
           updated_at?: string | null
         }
         Relationships: []
@@ -328,12 +331,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      get_user_household_ids: {
-        Args: {
-          user_id: string
-        }
-        Returns: string[]
-      }
+      get_user_household_ids:
+        | {
+            Args: Record<PropertyKey, never>
+            Returns: number[]
+          }
+        | {
+            Args: {
+              user_id: string
+            }
+            Returns: string[]
+          }
     }
     Enums: {
       member_role: "admin" | "member"
