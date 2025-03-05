@@ -5,7 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import type { MemberFormData, HouseholdMember } from "@/types/members";
-import { MemberRole } from "@/services/household";
+import { MemberRole } from "@/services/household/types";
 
 interface MemberFormProps {
   member?: HouseholdMember;

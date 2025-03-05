@@ -57,7 +57,7 @@ export async function getCurrentUserHousehold(): Promise<HouseholdData | null> {
   }
 
   // Check if user has a household
-  const { data: householdData, error: householdError } = await supabase
+  const { data, error: householdError } = await supabase
     .from('member_households')
     .select(`
       household:households (
@@ -74,12 +74,12 @@ export async function getCurrentUserHousehold(): Promise<HouseholdData | null> {
     throw new Error(`Failed to fetch user household: ${householdError.message}`);
   }
 
-  if (!householdData || !householdData.household) {
+  if (!data || !data.household) {
     return null;
   }
 
   // Safely convert to HouseholdData
-  const household = householdData.household as any;
+  const household = data.household as any;
   if (household && typeof household === 'object' && 'id' in household) {
     return {
       id: household.id,

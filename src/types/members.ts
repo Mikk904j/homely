@@ -1,5 +1,5 @@
 
-import { MemberRole } from "@/services/household";
+import { MemberRole } from "@/services/household/types";
 
 export interface Profile {
   id: string;
@@ -43,4 +43,4 @@ export interface MemberFormData {
 }
 
 // Re-export MemberRole from the household service
-export { MemberRole } from "@/services/household";
+export { MemberRole } from "@/services/household/types";

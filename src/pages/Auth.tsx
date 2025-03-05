@@ -33,27 +33,8 @@ const Auth = () => {
         }
 
         if (data.session) {
-          // User is already logged in, check if they have a household
-          try {
-            const { data: memberData, error: memberError } = await supabase
-              .from('member_households')
-              .select('household_id')
-              .eq('user_id', data.session.user.id)
-              .maybeSingle();
-
-            if (memberError) {
-              console.error("Error checking household:", memberError);
-              // Continue to auth page if we can't check household status
-              setLocalLoading(false);
-              return;
-            }
-
-            // Redirect based on household status
-            navigate(memberData?.household_id ? "/" : "/household-setup");
-          } catch (err) {
-            console.error("Error in household check:", err);
-            setLocalLoading(false);
-          }
+          console.log("User is already logged in, checking household status");
+          setLocalLoading(false);
         } else {
           // No active session, just show the auth page
           setLocalLoading(false);
@@ -67,24 +48,12 @@ const Auth = () => {
 
     // Initial check
     checkAuth();
-
-    // Listen for auth changes
-    const { data: authListener } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "SIGNED_IN") {
-        // Will handle the redirection
-        checkAuth();
-      }
-    });
-
-    return () => {
-      // Clean up the subscription
-      authListener.subscription.unsubscribe();
-    };
   }, [navigate]);
 
   // If the user is already authenticated in our auth hook, redirect them
   useEffect(() => {
     if (user) {
+      console.log("User is authenticated, hasHousehold:", hasHousehold);
       navigate(hasHousehold ? "/" : "/household-setup");
     }
   }, [user, hasHousehold, navigate]);

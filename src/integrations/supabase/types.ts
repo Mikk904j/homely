@@ -342,6 +342,19 @@ export type Database = {
             }
             Returns: string[]
           }
+      get_user_households: {
+        Args: {
+          user_id: string
+        }
+        Returns: string[]
+      }
+      user_belongs_to_household: {
+        Args: {
+          user_id: string
+          household_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
       member_role: "admin" | "member"

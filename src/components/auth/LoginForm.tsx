@@ -55,6 +55,8 @@ export const LoginForm = () => {
     setIsLoading(true);
 
     try {
+      console.log("Attempting login with email:", formData.email);
+      
       const { error } = await supabase.auth.signInWithPassword({
         email: formData.email,
         password: formData.password,
@@ -62,6 +64,8 @@ export const LoginForm = () => {
 
       if (error) throw error;
 
+      console.log("Login successful, checking household status");
+      
       // Check if user has a household
       await refreshHouseholdStatus();
 
@@ -85,6 +89,8 @@ export const LoginForm = () => {
           errorMessage = error.message;
         }
       }
+      
+      console.error("Login error:", error);
       
       toast({
         title: "Login failed",
@@ -151,4 +157,4 @@ export const LoginForm = () => {
       </Button>
     </form>
   );
-};
+}

@@ -27,8 +27,8 @@ export interface HouseholdMember {
   user_id: string;
   household_id: string;
   role: MemberRole;
-  created_at: string;
-  updated_at: string;
+  created_at: string | null;
+  updated_at: string | null;
   profile?: {
     first_name: string | null;
     last_name: string | null;
