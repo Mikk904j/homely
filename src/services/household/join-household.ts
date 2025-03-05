@@ -1,12 +1,12 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import { JoinHouseholdParams } from "./types";
+import { JoinHouseholdParams, JoinHouseholdResult } from "./types";
 
 export async function joinHousehold({ 
   inviteCode, 
   userId 
-}: JoinHouseholdParams): Promise<{ householdId: string; householdName: string }> {
-  if (!inviteCode) {
+}: JoinHouseholdParams): Promise<JoinHouseholdResult> {
+  if (!inviteCode.trim()) {
     throw new Error("Invite code is required");
   }
 
@@ -14,40 +14,33 @@ export async function joinHousehold({
     throw new Error("User ID is required to join a household");
   }
 
-  // Verify the invite code
+  // First, find the invite code
   const { data: invite, error: inviteError } = await supabase
     .from("household_invites")
-    .select("household_id, uses_remaining, expires_at")
-    .eq("code", inviteCode)
-    .single();
+    .select("id, household_id, expires_at, uses_remaining")
+    .eq("code", inviteCode.trim())
+    .maybeSingle();
 
-  if (inviteError || !invite) {
-    throw new Error("Invalid or expired invite code");
+  if (inviteError) {
+    console.error("Error finding invite:", inviteError);
+    throw new Error(`Failed to validate invite code: ${inviteError.message}`);
+  }
+
+  if (!invite) {
+    throw new Error("Invalid invite code. Please check the code and try again.");
   }
 
   // Check if the invite is expired
   if (new Date(invite.expires_at) < new Date()) {
-    throw new Error("This invite code has expired");
+    throw new Error("This invite code has expired.");
   }
 
-  // Check if there are uses remaining
+  // Check if the invite has uses remaining
   if (invite.uses_remaining !== null && invite.uses_remaining <= 0) {
-    throw new Error("This invite code has reached its usage limit");
+    throw new Error("This invite code has reached its maximum usage limit.");
   }
 
-  // Check if user is already a member of this household
-  const { data: existingMembership } = await supabase
-    .from("member_households")
-    .select("id")
-    .eq("household_id", invite.household_id)
-    .eq("user_id", userId)
-    .maybeSingle();
-
-  if (existingMembership) {
-    throw new Error("You are already a member of this household");
-  }
-
-  // Get the household name
+  // Fetch the household name
   const { data: household, error: householdError } = await supabase
     .from("households")
     .select("name")
@@ -55,33 +48,50 @@ export async function joinHousehold({
     .single();
 
   if (householdError) {
-    throw new Error("Could not find the household");
+    console.error("Error fetching household:", householdError);
+    throw new Error(`Failed to get household details: ${householdError.message}`);
+  }
+
+  // Check if the user is already a member of this household
+  const { data: existingMember, error: memberCheckError } = await supabase
+    .from("member_households")
+    .select("id")
+    .match({ user_id: userId, household_id: invite.household_id })
+    .maybeSingle();
+
+  if (memberCheckError) {
+    console.error("Error checking existing membership:", memberCheckError);
+    throw new Error(`Failed to check existing membership: ${memberCheckError.message}`);
+  }
+
+  if (existingMember) {
+    throw new Error("You are already a member of this household.");
   }
 
   // Add the user as a member
-  const { error: memberError } = await supabase
+  const { error: joinError } = await supabase
     .from("member_households")
     .insert({
       user_id: userId,
       household_id: invite.household_id,
-      role: "member",
+      role: "member"
     });
 
-  if (memberError) {
-    console.error("Error joining household:", memberError);
-    throw new Error(`Failed to join household: ${memberError.message}`);
+  if (joinError) {
+    console.error("Error joining household:", joinError);
+    throw new Error(`Failed to join household: ${joinError.message}`);
   }
 
-  // Decrement the uses_remaining if it's not null
+  // Decrement the uses_remaining count if needed
   if (invite.uses_remaining !== null) {
     await supabase
       .from("household_invites")
       .update({ uses_remaining: invite.uses_remaining - 1 })
-      .eq("code", inviteCode);
+      .eq("id", invite.id);
   }
 
   return { 
-    householdId: invite.household_id, 
-    householdName: household.name 
+    householdId: invite.household_id,
+    householdName: household.name
   };
 }

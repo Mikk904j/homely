@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { useQuery } from "@tanstack/react-query";
@@ -6,8 +7,8 @@ import { MemberCard } from "./MemberCard";
 import { AddMemberDialog } from "./AddMemberDialog";
 import { EditMemberDialog } from "./EditMemberDialog";
 import { Users, Star, Shield } from "lucide-react";
-import { householdService } from "@/services/household";
-import type { Household, HouseholdMember } from "@/types/members";
+import { householdService, HouseholdMember } from "@/services/household";
+import type { Household } from "@/types/members";
 
 export const MembersView = () => {
   const [selectedMember, setSelectedMember] = useState<HouseholdMember | null>(null);

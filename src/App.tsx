@@ -5,6 +5,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "./hooks/use-auth";
+import { AuthStateProvider } from "./hooks/use-auth-state";
+import { HouseholdStatusProvider } from "./hooks/use-household-status"; 
 import { Loading } from "./components/ui/loading";
 import { AnimatePresence, motion } from "framer-motion";
 import Index from "./pages/Index";
@@ -44,7 +46,7 @@ const PrivateRoute = ({ children, requireHousehold = true }: PrivateRouteProps) 
     return <Navigate to="/auth" state={{ from: location }} replace />;
   }
 
-  if (requireHousehold && !hasHousehold) {
+  if (requireHousehold && hasHousehold === false) {
     return <Navigate to="/household-setup" replace />;
   }
 
@@ -130,15 +132,19 @@ const AppRoutes = () => {
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <AppRoutes />
-        </BrowserRouter>
-      </TooltipProvider>
-    </AuthProvider>
+    <AuthStateProvider>
+      <HouseholdStatusProvider>
+        <AuthProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <AppRoutes />
+            </BrowserRouter>
+          </TooltipProvider>
+        </AuthProvider>
+      </HouseholdStatusProvider>
+    </AuthStateProvider>
   </QueryClientProvider>
 );
 

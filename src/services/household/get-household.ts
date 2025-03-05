@@ -1,8 +1,8 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import { HouseholdMember } from "./types";
+import { HouseholdMember, HouseholdData } from "./types";
 
-export async function getHouseholdMembers(householdId: string) {
+export async function getHouseholdMembers(householdId: string): Promise<HouseholdMember[]> {
   if (!householdId) {
     throw new Error("Household ID is required");
   }
@@ -16,7 +16,7 @@ export async function getHouseholdMembers(householdId: string) {
       role,
       created_at,
       updated_at,
-      profile:profiles (
+      profiles:profiles (
         first_name,
         last_name,
         phone,
@@ -32,20 +32,28 @@ export async function getHouseholdMembers(householdId: string) {
     throw new Error(`Failed to fetch household members: ${error.message}`);
   }
 
-  return data as HouseholdMember[];
+  // Transform the raw data to match our expected types
+  const members = data.map(member => {
+    return {
+      ...member,
+      profile: member.profiles || null
+    } as HouseholdMember;
+  });
+
+  return members;
 }
 
-export async function getCurrentUserHousehold() {
+export async function getCurrentUserHousehold(): Promise<HouseholdData | null> {
   const { data: { user } } = await supabase.auth.getUser();
   
   if (!user) {
     throw new Error("User not authenticated");
   }
 
-  const { data, error } = await supabase
+  // Check if user has a household
+  const { data: households, error: householdError } = await supabase
     .from('member_households')
     .select(`
-      household_id,
       household:households (
         id,
         name,
@@ -55,10 +63,30 @@ export async function getCurrentUserHousehold() {
     .eq('user_id', user.id)
     .maybeSingle();
 
-  if (error) {
-    console.error("Error fetching user household:", error);
-    throw new Error(`Failed to fetch user household: ${error.message}`);
+  if (householdError) {
+    console.error("Error fetching user household:", householdError);
+    throw new Error(`Failed to fetch user household: ${householdError.message}`);
   }
 
-  return data?.household || null;
+  return households?.household as HouseholdData || null;
+}
+
+export async function checkUserHasHousehold(): Promise<boolean> {
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (!user) {
+    return false;
+  }
+
+  const { count, error } = await supabase
+    .from('member_households')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', user.id);
+
+  if (error) {
+    console.error("Error checking household status:", error);
+    return false;
+  }
+
+  return count !== null && count > 0;
 }

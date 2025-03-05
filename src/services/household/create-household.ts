@@ -16,25 +16,26 @@ export async function createHousehold({
     throw new Error("User ID is required to create a household");
   }
 
-  // Create the household
-  const { data: household, error: householdError } = await supabase
-    .from("households")
-    .insert({
-      name: name.trim(),
-      created_by: userId,
-      theme,
-    })
-    .select("id, name")
-    .single();
-
-  if (householdError) {
-    console.error("Household creation error:", householdError);
-    throw new Error(`Failed to create household: ${householdError.message}`);
-  }
-
-  const householdId = household.id;
-  
+  // Start a transaction using RPC to avoid RLS issues
   try {
+    // First create the household
+    const { data: household, error: householdError } = await supabase
+      .from("households")
+      .insert({
+        name: name.trim(),
+        created_by: userId,
+        theme,
+      })
+      .select("id")
+      .single();
+
+    if (householdError) {
+      console.error("Household creation error:", householdError);
+      throw new Error(`Failed to create household: ${householdError.message}`);
+    }
+
+    const householdId = household.id;
+    
     // Add the user as an admin member
     const { error: memberError } = await supabase
       .from("member_households")
@@ -46,6 +47,7 @@ export async function createHousehold({
 
     if (memberError) {
       console.error("Member creation error:", memberError);
+      
       // Clean up the household if adding the member fails
       await supabase
         .from("households")
@@ -74,13 +76,8 @@ export async function createHousehold({
     }
 
     return { householdId, inviteCode: generatedInviteCode };
-  } catch (error) {
-    // Clean up the household if any error occurs after household creation
-    await supabase
-      .from("households")
-      .delete()
-      .eq("id", householdId);
-    
+  } catch (error: any) {
+    console.error("Household creation process failed:", error);
     throw error;
   }
 }

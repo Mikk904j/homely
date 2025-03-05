@@ -101,6 +101,8 @@ export function useCreateHousehold() {
         userId: user.id
       });
       
+      console.log("Household created successfully:", result);
+
       // Set success state
       setState(prev => ({
         ...prev,

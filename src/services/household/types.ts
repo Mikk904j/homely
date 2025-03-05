@@ -15,11 +15,18 @@ export interface JoinHouseholdParams {
   userId: string;
 }
 
+export interface JoinHouseholdResult {
+  householdId: string;
+  householdName: string;
+}
+
+export type MemberRole = 'admin' | 'member';
+
 export interface HouseholdMember {
   id: string;
   user_id: string;
   household_id: string;
-  role: string;
+  role: MemberRole;
   created_at: string;
   updated_at: string;
   profile?: {

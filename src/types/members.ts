@@ -1,5 +1,5 @@
 
-export type MemberRole = 'admin' | 'member';
+import { MemberRole } from "@/services/household";
 
 export interface Profile {
   id: string;
@@ -26,7 +26,13 @@ export interface HouseholdMember {
   role: MemberRole;
   created_at: string | null;
   updated_at: string | null;
-  profile?: Profile;
+  profile?: {
+    first_name: string | null;
+    last_name: string | null;
+    phone: string | null;
+    avatar_url: string | null;
+    status: string | null;
+  };
 }
 
 export interface MemberFormData {

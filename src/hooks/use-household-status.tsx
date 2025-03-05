@@ -1,8 +1,8 @@
 
 import { createContext, useContext, useState, ReactNode, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuthState } from "./use-auth-state";
+import { checkUserHasHousehold } from "@/services/household/get-household";
 
 interface HouseholdStatusState {
   hasHousehold: boolean | null;
@@ -25,25 +25,6 @@ export function HouseholdStatusProvider({ children }: { children: ReactNode }) {
   const { user } = useAuthState();
   const { toast } = useToast();
 
-  const checkHouseholdStatus = async (userId: string): Promise<boolean | null> => {
-    try {
-      // Call the user_has_household security definer function
-      const { data, error } = await supabase
-        .rpc('user_has_household');
-
-      if (error) {
-        console.error("Error checking household status:", error);
-        return null;
-      }
-
-      // The function returns a boolean directly
-      return data as boolean;
-    } catch (error) {
-      console.error("Unexpected error checking household status:", error);
-      return null;
-    }
-  };
-
   useEffect(() => {
     const loadHouseholdStatus = async () => {
       if (!user) {
@@ -57,7 +38,7 @@ export function HouseholdStatusProvider({ children }: { children: ReactNode }) {
 
       try {
         setState(prev => ({ ...prev, loading: true, error: null }));
-        const hasHousehold = await checkHouseholdStatus(user.id);
+        const hasHousehold = await checkUserHasHousehold();
 
         setState({
           hasHousehold,
@@ -82,7 +63,7 @@ export function HouseholdStatusProvider({ children }: { children: ReactNode }) {
     
     try {
       setState(prev => ({ ...prev, loading: true, error: null }));
-      const hasHousehold = await checkHouseholdStatus(user.id);
+      const hasHousehold = await checkUserHasHousehold();
       
       setState(prev => ({
         ...prev,
