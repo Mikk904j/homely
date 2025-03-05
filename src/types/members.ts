@@ -42,5 +42,5 @@ export interface MemberFormData {
   role: MemberRole;
 }
 
-// Re-export MemberRole from the household service
-export { MemberRole } from "@/services/household/types";
+// Re-export MemberRole from the household service using 'export type'
+export type { MemberRole } from "@/services/household/types";

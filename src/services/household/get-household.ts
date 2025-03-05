@@ -7,6 +7,8 @@ export async function getHouseholdMembers(householdId: string): Promise<Househol
     throw new Error("Household ID is required");
   }
 
+  console.log("Fetching household members for:", householdId);
+
   const { data, error } = await supabase
     .from('member_households')
     .select(`
@@ -16,7 +18,7 @@ export async function getHouseholdMembers(householdId: string): Promise<Househol
       role,
       created_at,
       updated_at,
-      profiles:profiles (
+      profiles:user_id (
         first_name,
         last_name,
         phone,
@@ -46,6 +48,7 @@ export async function getHouseholdMembers(householdId: string): Promise<Househol
     } as HouseholdMember;
   });
 
+  console.log("Retrieved household members:", members.length);
   return members;
 }
 
@@ -55,6 +58,8 @@ export async function getCurrentUserHousehold(): Promise<HouseholdData | null> {
   if (!user) {
     throw new Error("User not authenticated");
   }
+
+  console.log("Checking for current user's household");
 
   // Check if user has a household
   const { data, error: householdError } = await supabase
@@ -75,17 +80,20 @@ export async function getCurrentUserHousehold(): Promise<HouseholdData | null> {
   }
 
   if (!data || !data.household) {
+    console.log("No household found for current user");
     return null;
   }
 
   // Safely convert to HouseholdData
   const household = data.household as any;
   if (household && typeof household === 'object' && 'id' in household) {
-    return {
+    const result = {
       id: household.id,
       name: household.name,
       created_at: household.created_at
     };
+    console.log("Found user household:", result.name);
+    return result;
   }
 
   return null;
@@ -95,8 +103,11 @@ export async function checkUserHasHousehold(): Promise<boolean> {
   const { data: { user } } = await supabase.auth.getUser();
   
   if (!user) {
+    console.log("No authenticated user found");
     return false;
   }
+
+  console.log("Checking if user has a household");
 
   const { count, error } = await supabase
     .from('member_households')
@@ -108,5 +119,7 @@ export async function checkUserHasHousehold(): Promise<boolean> {
     return false;
   }
 
-  return count !== null && count > 0;
+  const hasHousehold = count !== null && count > 0;
+  console.log("User has household:", hasHousehold);
+  return hasHousehold;
 }
