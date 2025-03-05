@@ -41,3 +41,6 @@ export interface MemberFormData {
   phone: string;
   role: MemberRole;
 }
+
+// Re-export MemberRole from the household service
+export { MemberRole } from "@/services/household";

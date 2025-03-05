@@ -1,11 +1,11 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import type { MemberFormData, HouseholdMember, MemberRole } from "@/types/members";
+import type { MemberFormData, HouseholdMember } from "@/types/members";
+import { MemberRole } from "@/services/household";
 
 interface MemberFormProps {
   member?: HouseholdMember;

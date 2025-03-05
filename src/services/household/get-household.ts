@@ -36,7 +36,13 @@ export async function getHouseholdMembers(householdId: string): Promise<Househol
   const members = data.map(member => {
     return {
       ...member,
-      profile: member.profiles || null
+      profile: member.profiles ? {
+        first_name: member.profiles.first_name,
+        last_name: member.profiles.last_name,
+        phone: member.profiles.phone,
+        avatar_url: member.profiles.avatar_url,
+        status: member.profiles.status
+      } : undefined
     } as HouseholdMember;
   });
 
@@ -51,7 +57,7 @@ export async function getCurrentUserHousehold(): Promise<HouseholdData | null> {
   }
 
   // Check if user has a household
-  const { data: households, error: householdError } = await supabase
+  const { data: householdData, error: householdError } = await supabase
     .from('member_households')
     .select(`
       household:households (
@@ -68,7 +74,21 @@ export async function getCurrentUserHousehold(): Promise<HouseholdData | null> {
     throw new Error(`Failed to fetch user household: ${householdError.message}`);
   }
 
-  return households?.household as HouseholdData || null;
+  if (!householdData || !householdData.household) {
+    return null;
+  }
+
+  // Safely convert to HouseholdData
+  const household = householdData.household as any;
+  if (household && typeof household === 'object' && 'id' in household) {
+    return {
+      id: household.id,
+      name: household.name,
+      created_at: household.created_at
+    };
+  }
+
+  return null;
 }
 
 export async function checkUserHasHousehold(): Promise<boolean> {
