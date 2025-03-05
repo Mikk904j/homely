@@ -25,10 +25,9 @@ export function HouseholdStatusProvider({ children }: { children: ReactNode }) {
   const { user } = useAuthState();
   const { toast } = useToast();
 
-  // Updated to use the security definer function instead of direct query
   const checkHouseholdStatus = async (userId: string): Promise<boolean | null> => {
     try {
-      // Using the user_has_household() security definer function
+      // Call the user_has_household security definer function
       const { data, error } = await supabase
         .rpc('user_has_household');
 

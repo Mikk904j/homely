@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { useQuery } from "@tanstack/react-query";
@@ -7,6 +6,7 @@ import { MemberCard } from "./MemberCard";
 import { AddMemberDialog } from "./AddMemberDialog";
 import { EditMemberDialog } from "./EditMemberDialog";
 import { Users, Star, Shield } from "lucide-react";
+import { householdService } from "@/services/household";
 import type { Household, HouseholdMember } from "@/types/members";
 
 export const MembersView = () => {
@@ -49,28 +49,8 @@ export const MembersView = () => {
     queryKey: ['household-members', household?.id],
     enabled: !!household?.id,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('member_households')
-        .select(`
-          id,
-          user_id,
-          household_id,
-          role,
-          created_at,
-          updated_at,
-          profile:profiles (
-            first_name,
-            last_name,
-            phone,
-            avatar_url,
-            status
-          )
-        `)
-        .eq('household_id', household?.id)
-        .order('created_at');
-
-      if (error) throw error;
-      return data as unknown as HouseholdMember[];
+      if (!household?.id) throw new Error("No household ID available");
+      return householdService.getHouseholdMembers(household.id);
     }
   });
 

@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/hooks/use-auth";
-import { householdService } from "@/services/household-service";
+import { householdService } from "@/services/household";
 
 type HouseholdTheme = "default" | "warm" | "cool";
 type CreateHouseholdStep = 'info' | 'success';
