@@ -25,20 +25,19 @@ export function HouseholdStatusProvider({ children }: { children: ReactNode }) {
   const { user } = useAuthState();
   const { toast } = useToast();
 
+  // Updated to use the security definer function instead of direct query
   const checkHouseholdStatus = async (userId: string): Promise<boolean | null> => {
     try {
-      const { data: memberData, error } = await supabase
-        .from("member_households")
-        .select("household_id")
-        .eq("user_id", userId)
-        .maybeSingle();
+      // Using the user_has_household() security definer function
+      const { data, error } = await supabase
+        .rpc('user_has_household');
 
       if (error) {
         console.error("Error checking household status:", error);
         return null;
       }
 
-      return !!memberData?.household_id;
+      return data;
     } catch (error) {
       console.error("Unexpected error checking household status:", error);
       return null;

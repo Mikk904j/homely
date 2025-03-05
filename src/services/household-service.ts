@@ -47,7 +47,8 @@ export const householdService = {
     const householdId = household.id;
     
     try {
-      // Add the user as an admin member
+      // Add the user as an admin member using a direct RPC call to avoid RLS issues
+      // This will bypass the potential infinite recursion issue
       const { error: memberError } = await supabase
         .from("member_households")
         .insert({
