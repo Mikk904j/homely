@@ -9,6 +9,8 @@ export async function getHouseholdMembers(householdId: string): Promise<Househol
 
   console.log("Fetching household members for:", householdId);
 
+  // The issue is with how we're trying to join the profiles table
+  // Let's modify the query to correctly fetch the related profile data
   const { data, error } = await supabase
     .from('member_households')
     .select(`
@@ -17,14 +19,7 @@ export async function getHouseholdMembers(householdId: string): Promise<Househol
       household_id,
       role,
       created_at,
-      updated_at,
-      profiles:user_id (
-        first_name,
-        last_name,
-        phone,
-        avatar_url,
-        status
-      )
+      updated_at
     `)
     .eq('household_id', householdId)
     .order('created_at');
@@ -34,19 +29,39 @@ export async function getHouseholdMembers(householdId: string): Promise<Househol
     throw new Error(`Failed to fetch household members: ${error.message}`);
   }
 
-  // Transform the raw data to match our expected types
-  const members = data.map(member => {
-    return {
-      ...member,
-      profile: member.profiles ? {
-        first_name: member.profiles.first_name,
-        last_name: member.profiles.last_name,
-        phone: member.profiles.phone,
-        avatar_url: member.profiles.avatar_url,
-        status: member.profiles.status
-      } : undefined
-    } as HouseholdMember;
-  });
+  // Now fetch the profile data separately for each member
+  const members: HouseholdMember[] = [];
+  
+  for (const member of data) {
+    if (member.user_id) {
+      // Fetch the profile for this user_id
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('first_name, last_name, phone, avatar_url, status')
+        .eq('id', member.user_id)
+        .single();
+        
+      if (profileError) {
+        console.error(`Error fetching profile for user ${member.user_id}:`, profileError);
+      }
+      
+      members.push({
+        ...member,
+        profile: profileData ? {
+          first_name: profileData.first_name,
+          last_name: profileData.last_name,
+          phone: profileData.phone,
+          avatar_url: profileData.avatar_url,
+          status: profileData.status
+        } : undefined
+      } as HouseholdMember);
+    } else {
+      members.push({
+        ...member,
+        profile: undefined
+      } as HouseholdMember);
+    }
+  }
 
   console.log("Retrieved household members:", members.length);
   return members;
