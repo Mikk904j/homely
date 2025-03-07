@@ -1,10 +1,11 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Home } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
 
 interface HouseholdFormProps {
   householdName: string;
@@ -23,10 +24,37 @@ export const HouseholdForm = ({
   isLoading,
   onSubmit,
 }: HouseholdFormProps) => {
+  const [nameStrength, setNameStrength] = useState(0);
+  const [formValid, setFormValid] = useState(false);
+
+  // Calculate form validity and name strength
+  useEffect(() => {
+    const trimmedName = householdName.trim();
+    const nameLength = trimmedName.length;
+    
+    // Simple strength calculation based on length
+    const strength = Math.min(100, (nameLength / 15) * 100);
+    setNameStrength(nameLength === 0 ? 0 : Math.max(10, strength));
+    
+    // Form is valid if we have a non-empty name
+    setFormValid(trimmedName.length > 0 && trimmedName.length <= 50);
+  }, [householdName]);
+
+  const getProgressColor = () => {
+    if (nameStrength < 30) return "bg-red-500";
+    if (nameStrength < 70) return "bg-yellow-500";
+    return "bg-green-500";
+  };
+
   return (
     <form onSubmit={onSubmit} className="space-y-6">
       <div className="space-y-2">
-        <Label htmlFor="householdName">Household Name</Label>
+        <div className="flex justify-between items-center">
+          <Label htmlFor="householdName">Household Name</Label>
+          <span className="text-xs text-muted-foreground">
+            {householdName.length}/50
+          </span>
+        </div>
         <Input
           id="householdName"
           value={householdName}
@@ -35,7 +63,13 @@ export const HouseholdForm = ({
           className="animate-scale-in"
           required
           disabled={isLoading}
+          maxLength={50}
+          aria-describedby="nameHelp"
         />
+        <Progress value={nameStrength} className={getProgressColor()} aria-hidden="true" />
+        <p id="nameHelp" className="text-xs text-muted-foreground">
+          Choose a descriptive name for your household
+        </p>
       </div>
 
       <div className="space-y-2">
@@ -67,7 +101,7 @@ export const HouseholdForm = ({
       <Button 
         type="submit" 
         className="w-full" 
-        disabled={isLoading}
+        disabled={isLoading || !formValid}
       >
         {isLoading ? "Creating..." : "Create Household"}
       </Button>

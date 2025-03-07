@@ -2,8 +2,9 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { HouseholdForm } from "./HouseholdForm";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Info } from "lucide-react";
 import { motion } from "framer-motion";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface CreateHouseholdCardProps {
   householdName: string;
@@ -36,11 +37,28 @@ export const CreateHouseholdCard = ({
             variant="ghost"
             className="-ml-2 mb-2"
             onClick={onBack}
+            aria-label="Go back"
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back
           </Button>
-          <CardTitle className="text-2xl">Create Your Household</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-2xl">Create Your Household</CardTitle>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="sm" className="rounded-full">
+                    <Info className="h-4 w-4 text-muted-foreground" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="max-w-xs">
+                    Setting up a household allows you to share chores, shopping lists, and more with others
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
           <CardDescription>
             Set up your household to start managing tasks and sharing responsibilities with family members.
           </CardDescription>

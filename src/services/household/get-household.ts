@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { HouseholdMember, HouseholdData } from "./types";
 
@@ -9,7 +8,7 @@ export async function getHouseholdMembers(householdId: string): Promise<Househol
 
   console.log("Fetching household members for:", householdId);
 
-  // Fetch member data first
+  // Use a more efficient approach with a single query and left join
   const { data, error } = await supabase
     .from('member_households')
     .select(`
@@ -18,7 +17,14 @@ export async function getHouseholdMembers(householdId: string): Promise<Househol
       household_id,
       role,
       created_at,
-      updated_at
+      updated_at,
+      profiles:user_id (
+        first_name,
+        last_name,
+        phone,
+        avatar_url,
+        status
+      )
     `)
     .eq('household_id', householdId)
     .order('created_at');
@@ -28,39 +34,16 @@ export async function getHouseholdMembers(householdId: string): Promise<Househol
     throw new Error(`Failed to fetch household members: ${error.message}`);
   }
 
-  // Now fetch the profile data separately for each member
-  const members: HouseholdMember[] = [];
-  
-  for (const member of data) {
-    if (member.user_id) {
-      // Fetch the profile for this user_id
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('first_name, last_name, phone, avatar_url, status')
-        .eq('id', member.user_id)
-        .single();
-        
-      if (profileError) {
-        console.error(`Error fetching profile for user ${member.user_id}:`, profileError);
-      }
-      
-      members.push({
-        ...member,
-        profile: profileData ? {
-          first_name: profileData.first_name,
-          last_name: profileData.last_name,
-          phone: profileData.phone,
-          avatar_url: profileData.avatar_url,
-          status: profileData.status
-        } : undefined
-      } as HouseholdMember);
-    } else {
-      members.push({
-        ...member,
-        profile: undefined
-      } as HouseholdMember);
-    }
-  }
+  // Transform the data to match the expected HouseholdMember interface
+  const members: HouseholdMember[] = data.map(item => ({
+    id: item.id,
+    user_id: item.user_id,
+    household_id: item.household_id,
+    role: item.role,
+    created_at: item.created_at,
+    updated_at: item.updated_at,
+    profile: item.profiles || undefined
+  }));
 
   console.log("Retrieved household members:", members.length);
   return members;
