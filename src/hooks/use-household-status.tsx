@@ -59,7 +59,7 @@ export function HouseholdStatusProvider({ children }: { children: ReactNode }) {
     loadHouseholdStatus();
   }, [user, loadHouseholdStatus]);
 
-  const refreshHouseholdStatus = async () => {
+  const refreshHouseholdStatus = async (): Promise<void> => {
     if (!user) return;
     
     try {
@@ -71,8 +71,6 @@ export function HouseholdStatusProvider({ children }: { children: ReactNode }) {
         hasHousehold,
         loading: false
       }));
-
-      return hasHousehold;
     } catch (error: any) {
       console.error("Error refreshing household status:", error);
       toast({

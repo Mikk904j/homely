@@ -20,6 +20,8 @@ import Auth from "./pages/Auth";
 import HouseholdSetup from "./pages/HouseholdSetup";
 import NotFound from "./pages/NotFound";
 import { AppShell } from "./components/AppShell";
+import { Button } from "./components/ui/button";
+import { RefreshCcw } from "lucide-react";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -40,24 +42,58 @@ const PrivateRoute = ({ children, requireHousehold = true }: PrivateRouteProps) 
   const { user, loading, hasHousehold } = useAuth();
   const location = useLocation();
   const [loadingTimeout, setLoadingTimeout] = useState(false);
+  const [criticalTimeout, setCriticalTimeout] = useState(false);
   
-  // Set a timeout to handle cases where auth check takes too long
+  // Set timeouts to handle cases where auth check takes too long
   useEffect(() => {
+    let timer: number | undefined;
+    let criticalTimer: number | undefined;
+    
     if (loading) {
-      const timer = setTimeout(() => {
+      // First timeout for user feedback
+      timer = window.setTimeout(() => {
         setLoadingTimeout(true);
-      }, 5000); // 5 seconds timeout
+      }, 3000); // 3 seconds timeout
       
-      return () => clearTimeout(timer);
+      // Second timeout for critical fail case
+      criticalTimer = window.setTimeout(() => {
+        setCriticalTimeout(true);
+      }, 10000); // 10 seconds timeout
+    } else {
+      // Reset timeouts when loading completes
+      setLoadingTimeout(false);
+      setCriticalTimeout(false);
     }
+    
+    return () => {
+      window.clearTimeout(timer);
+      window.clearTimeout(criticalTimer);
+    };
   }, [loading]);
 
+  // If we hit critical timeout, provide a reload option
+  if (criticalTimeout) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen p-4 text-center">
+        <h2 className="text-2xl font-bold mb-4">Authentication Check Failed</h2>
+        <p className="mb-6 text-muted-foreground">
+          We're having trouble verifying your authentication status.
+        </p>
+        <Button onClick={() => window.location.reload()} className="flex items-center">
+          <RefreshCcw className="mr-2 h-4 w-4" />
+          Reload Application
+        </Button>
+      </div>
+    );
+  }
+
   if (loading) {
-    // Show a message if loading takes too long
     return (
       <Loading 
         fullScreen 
-        text={loadingTimeout ? "Loading is taking longer than expected. Please refresh if this continues." : "Checking authentication..."}
+        text={loadingTimeout 
+          ? "Checking authentication is taking longer than expected..." 
+          : "Checking authentication..."}
       />
     );
   }
@@ -92,6 +128,23 @@ const AuthCheck = ({ children }: { children: React.ReactNode }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [loadingTimeout, setLoadingTimeout] = useState(false);
+  
+  useEffect(() => {
+    let timer: number | undefined;
+    
+    if (loading) {
+      timer = window.setTimeout(() => {
+        setLoadingTimeout(true);
+      }, 3000); // 3 seconds timeout
+    } else {
+      setLoadingTimeout(false);
+    }
+    
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [loading]);
   
   useEffect(() => {
     if (!loading && !user && location.pathname !== "/auth") {
@@ -101,7 +154,12 @@ const AuthCheck = ({ children }: { children: React.ReactNode }) => {
   }, [user, loading, navigate, location]);
 
   if (loading) {
-    return <Loading fullScreen text="Checking authentication status..." />;
+    return <Loading 
+      fullScreen 
+      text={loadingTimeout 
+        ? "Authentication check is taking longer than expected..." 
+        : "Checking authentication status..."} 
+    />;
   }
 
   // Only show AppShell for authenticated routes

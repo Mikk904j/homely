@@ -24,8 +24,8 @@ const Auth = () => {
   // This retains the original URL the user was trying to access
   const from = (location.state as any)?.from?.pathname || "/";
 
+  // Initial check for authentication status
   useEffect(() => {
-    // Check if user is already authenticated
     const checkAuth = async () => {
       try {
         setLocalLoading(true);
@@ -41,8 +41,12 @@ const Auth = () => {
           console.log("User is already logged in, checking household status");
         }
         
-        // No matter what, we stop the loading state
-        setLocalLoading(false);
+        // Always stop the loading state after a maximum of 5 seconds
+        const timer = setTimeout(() => {
+          setLocalLoading(false);
+        }, 5000);
+        
+        return () => clearTimeout(timer);
       } catch (err: any) {
         console.error("Auth check error:", err);
         setLocalError(err.message || "Failed to verify authentication status");
@@ -52,28 +56,37 @@ const Auth = () => {
 
     // Initial check
     checkAuth();
+    
+    // Set a max timeout to prevent infinite loading
+    const maxTimeout = setTimeout(() => {
+      setLocalLoading(false);
+    }, 5000);
+    
+    return () => clearTimeout(maxTimeout);
   }, []);
 
-  // If the user is already authenticated in our auth hook, redirect them
+  // When auth state is determined, redirect if needed
   useEffect(() => {
     if (!authLoading && user) {
       console.log("User is authenticated, hasHousehold:", hasHousehold);
       
-      if (hasHousehold === null) {
-        // Still loading household status, wait for it
-        return;
-      }
-      
-      // Redirect to the original page they were trying to access or fallback path
-      if (hasHousehold) {
-        navigate(from, { replace: true });
-      } else {
-        navigate("/household-setup", { replace: true });
-      }
+      // Force auth check to complete in a reasonable time
+      setTimeout(() => {
+        if (hasHousehold === true) {
+          navigate(from, { replace: true });
+        } else if (hasHousehold === false) {
+          navigate("/household-setup", { replace: true });
+        }
+      }, 500);
+    } else {
+      // Ensure we exit loading state after a maximum time
+      setTimeout(() => {
+        setLocalLoading(false);
+      }, 3000);
     }
   }, [user, hasHousehold, authLoading, navigate, from]);
 
-  if (localLoading || authLoading) {
+  if (localLoading && authLoading) {
     return <Loading fullScreen text="Checking authentication status..." />;
   }
 

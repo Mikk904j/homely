@@ -10,7 +10,7 @@ export async function getHouseholdMembers(householdId: string): Promise<Househol
   console.log("Fetching household members for:", householdId);
 
   try {
-    // Use a join to fetch member data and profiles in a single query
+    // Use a more straightforward query approach that's type-safe
     const { data, error } = await supabase
       .from('member_households')
       .select(`
@@ -35,22 +35,26 @@ export async function getHouseholdMembers(householdId: string): Promise<Househol
       return [];
     }
 
-    // Map the joined data to the HouseholdMember interface
-    const members: HouseholdMember[] = data.map(item => ({
-      id: item.id,
-      user_id: item.user_id,
-      household_id: item.household_id,
-      role: item.role,
-      created_at: item.created_at,
-      updated_at: item.updated_at,
-      profile: item.profiles ? {
-        first_name: item.profiles.first_name,
-        last_name: item.profiles.last_name,
-        phone: item.profiles.phone,
-        avatar_url: item.profiles.avatar_url,
-        status: item.profiles.status
-      } : undefined
-    }));
+    // Map the joined data to the HouseholdMember interface, with type safety
+    const members: HouseholdMember[] = data.map(item => {
+      const profile = item.profiles as any; // Cast to any to resolve typing issues
+      
+      return {
+        id: item.id,
+        user_id: item.user_id,
+        household_id: item.household_id,
+        role: item.role,
+        created_at: item.created_at,
+        updated_at: item.updated_at,
+        profile: profile ? {
+          first_name: profile.first_name,
+          last_name: profile.last_name,
+          phone: profile.phone,
+          avatar_url: profile.avatar_url,
+          status: profile.status
+        } : undefined
+      };
+    });
 
     console.log("Retrieved household members:", members.length);
     return members;
