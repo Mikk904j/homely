@@ -42,5 +42,5 @@ export interface MemberFormData {
   role: MemberRole;
 }
 
-// Re-export MemberRole from the household service using 'export type'
+// Fix the re-export using 'export type' to comply with isolatedModules
 export type { MemberRole } from "@/services/household/types";

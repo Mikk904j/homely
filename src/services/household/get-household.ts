@@ -9,8 +9,7 @@ export async function getHouseholdMembers(householdId: string): Promise<Househol
 
   console.log("Fetching household members for:", householdId);
 
-  // The issue is with how we're trying to join the profiles table
-  // Let's modify the query to correctly fetch the related profile data
+  // Fetch member data first
   const { data, error } = await supabase
     .from('member_households')
     .select(`
