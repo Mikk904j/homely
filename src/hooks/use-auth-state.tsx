@@ -48,6 +48,7 @@ export function AuthStateProvider({ children }: { children: ReactNode }) {
             throw new Error("Session exists but no user found");
           }
 
+          console.log("User authenticated:", user.id);
           setState({
             user,
             session,
@@ -55,6 +56,7 @@ export function AuthStateProvider({ children }: { children: ReactNode }) {
             error: null
           });
         } else {
+          console.log("No active session found");
           setState({
             user: null,
             session: null,
@@ -84,6 +86,7 @@ export function AuthStateProvider({ children }: { children: ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      console.log("Auth state changed, event:", _event);
       setState(prev => ({ ...prev, loading: true, error: null }));
       
       if (session) {
@@ -98,6 +101,7 @@ export function AuthStateProvider({ children }: { children: ReactNode }) {
             throw new Error("Session exists but no user found during auth state change");
           }
 
+          console.log("User authenticated after state change:", user.id);
           setState({
             user,
             session,
@@ -119,6 +123,7 @@ export function AuthStateProvider({ children }: { children: ReactNode }) {
           });
         }
       } else {
+        console.log("User signed out or session expired");
         setState({
           user: null,
           session: null,

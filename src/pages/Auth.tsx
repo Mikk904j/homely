@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LoginForm } from "@/components/auth/LoginForm";
@@ -16,8 +16,12 @@ const Auth = () => {
   const [localLoading, setLocalLoading] = useState(true);
   const [localError, setLocalError] = useState<string | null>(null);
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
   const { user, hasHousehold } = useAuth();
+
+  // This retains the original URL the user was trying to access
+  const from = (location.state as any)?.from?.pathname || "/";
 
   useEffect(() => {
     // Check if user is already authenticated
@@ -48,15 +52,26 @@ const Auth = () => {
 
     // Initial check
     checkAuth();
-  }, [navigate]);
+  }, []);
 
   // If the user is already authenticated in our auth hook, redirect them
   useEffect(() => {
     if (user) {
       console.log("User is authenticated, hasHousehold:", hasHousehold);
-      navigate(hasHousehold ? "/" : "/household-setup");
+      
+      if (hasHousehold === null) {
+        // Still loading household status, wait for it
+        return;
+      }
+      
+      // Redirect to the original page they were trying to access or fallback path
+      if (hasHousehold) {
+        navigate(from, { replace: true });
+      } else {
+        navigate("/household-setup", { replace: true });
+      }
     }
-  }, [user, hasHousehold, navigate]);
+  }, [user, hasHousehold, navigate, from]);
 
   if (localLoading) {
     return <Loading fullScreen text="Checking authentication status..." />;

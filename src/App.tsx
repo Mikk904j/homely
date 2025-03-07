@@ -1,14 +1,14 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./hooks/use-auth";
 import { AuthStateProvider } from "./hooks/use-auth-state";
 import { HouseholdStatusProvider } from "./hooks/use-household-status"; 
 import { Loading } from "./components/ui/loading";
 import { AnimatePresence, motion } from "framer-motion";
+import { useEffect } from "react";
 import Index from "./pages/Index";
 import Shopping from "./pages/Shopping";
 import Calendar from "./pages/Calendar";
@@ -65,68 +65,88 @@ const PrivateRoute = ({ children, requireHousehold = true }: PrivateRouteProps) 
   );
 };
 
+const AuthCheck = ({ children }: { children: React.ReactNode }) => {
+  const { user, loading } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+  
+  useEffect(() => {
+    if (!loading && !user && location.pathname !== "/auth") {
+      navigate("/auth", { state: { from: location }, replace: true });
+    }
+  }, [user, loading, navigate, location]);
+
+  if (loading) {
+    return <Loading fullScreen />;
+  }
+
+  return <>{children}</>;
+};
+
 const AppRoutes = () => {
   return (
-    <Routes>
-      <Route
-        path="/"
-        element={
-          <PrivateRoute>
-            <Index />
-          </PrivateRoute>
-        }
-      />
-      <Route
-        path="/shopping"
-        element={
-          <PrivateRoute>
-            <Shopping />
-          </PrivateRoute>
-        }
-      />
-      <Route
-        path="/calendar"
-        element={
-          <PrivateRoute>
-            <Calendar />
-          </PrivateRoute>
-        }
-      />
-      <Route
-        path="/tickets"
-        element={
-          <PrivateRoute>
-            <Tickets />
-          </PrivateRoute>
-        }
-      />
-      <Route
-        path="/members"
-        element={
-          <PrivateRoute>
-            <Members />
-          </PrivateRoute>
-        }
-      />
-      <Route
-        path="/settings"
-        element={
-          <PrivateRoute>
-            <Settings />
-          </PrivateRoute>
-        }
-      />
-      <Route 
-        path="/household-setup" 
-        element={
-          <PrivateRoute requireHousehold={false}>
-            <HouseholdSetup />
-          </PrivateRoute>
-        } 
-      />
-      <Route path="/auth" element={<Auth />} />
-      <Route path="*" element={<NotFound />} />
-    </Routes>
+    <AuthCheck>
+      <Routes>
+        <Route
+          path="/"
+          element={
+            <PrivateRoute>
+              <Index />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/shopping"
+          element={
+            <PrivateRoute>
+              <Shopping />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/calendar"
+          element={
+            <PrivateRoute>
+              <Calendar />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/tickets"
+          element={
+            <PrivateRoute>
+              <Tickets />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/members"
+          element={
+            <PrivateRoute>
+              <Members />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            <PrivateRoute>
+              <Settings />
+            </PrivateRoute>
+          }
+        />
+        <Route 
+          path="/household-setup" 
+          element={
+            <PrivateRoute requireHousehold={false}>
+              <HouseholdSetup />
+            </PrivateRoute>
+          } 
+        />
+        <Route path="/auth" element={<Auth />} />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </AuthCheck>
   );
 };
 
