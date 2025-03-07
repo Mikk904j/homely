@@ -1,5 +1,5 @@
 
-import { createContext, useContext, useState, ReactNode, useEffect } from "react";
+import { createContext, useContext, useState, ReactNode, useEffect, useCallback } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuthState } from "./use-auth-state";
 import { checkUserHasHousehold } from "@/services/household/get-household";
@@ -25,38 +25,39 @@ export function HouseholdStatusProvider({ children }: { children: ReactNode }) {
   const { user } = useAuthState();
   const { toast } = useToast();
 
-  useEffect(() => {
-    const loadHouseholdStatus = async () => {
-      if (!user) {
-        setState({
-          hasHousehold: null,
-          loading: false,
-          error: null
-        });
-        return;
-      }
+  const loadHouseholdStatus = useCallback(async () => {
+    if (!user) {
+      setState({
+        hasHousehold: null,
+        loading: false,
+        error: null
+      });
+      return;
+    }
 
-      try {
-        setState(prev => ({ ...prev, loading: true, error: null }));
-        const hasHousehold = await checkUserHasHousehold();
+    try {
+      setState(prev => ({ ...prev, loading: true, error: null }));
+      const hasHousehold = await checkUserHasHousehold();
 
-        setState({
-          hasHousehold,
-          loading: false,
-          error: null
-        });
-      } catch (error: any) {
-        console.error("Error loading household status:", error);
-        setState({
-          hasHousehold: null,
-          loading: false,
-          error: error.message || "Failed to check household status"
-        });
-      }
-    };
-
-    loadHouseholdStatus();
+      setState({
+        hasHousehold,
+        loading: false,
+        error: null
+      });
+    } catch (error: any) {
+      console.error("Error loading household status:", error);
+      setState({
+        hasHousehold: null,
+        loading: false,
+        error: error.message || "Failed to check household status"
+      });
+    }
   }, [user]);
+
+  useEffect(() => {
+    console.log("HouseholdStatusProvider: User changed, loading status");
+    loadHouseholdStatus();
+  }, [user, loadHouseholdStatus]);
 
   const refreshHouseholdStatus = async () => {
     if (!user) return;
@@ -70,6 +71,8 @@ export function HouseholdStatusProvider({ children }: { children: ReactNode }) {
         hasHousehold,
         loading: false
       }));
+
+      return hasHousehold;
     } catch (error: any) {
       console.error("Error refreshing household status:", error);
       toast({
