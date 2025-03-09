@@ -14,8 +14,7 @@ export async function getHouseholdMembers(householdId: string): Promise<Househol
     const { data: memberData, error: memberError } = await supabase
       .from('member_households')
       .select('id, user_id, household_id, role, created_at, updated_at')
-      .eq('household_id', householdId)
-      .order('created_at');
+      .eq('household_id', householdId);
 
     if (memberError) {
       console.error("Error fetching household members:", memberError);
@@ -38,7 +37,7 @@ export async function getHouseholdMembers(householdId: string): Promise<Househol
           .from('profiles')
           .select('first_name, last_name, phone, avatar_url, status')
           .eq('id', member.user_id)
-          .single();
+          .maybeSingle();
 
         if (profileError) {
           console.warn(`Could not fetch profile for user ${member.user_id}:`, profileError);
@@ -51,7 +50,7 @@ export async function getHouseholdMembers(householdId: string): Promise<Househol
             created_at: member.created_at,
             updated_at: member.updated_at
           });
-        } else {
+        } else if (profileData) {
           // Add member with profile data
           members.push({
             id: member.id,
@@ -67,6 +66,16 @@ export async function getHouseholdMembers(householdId: string): Promise<Househol
               avatar_url: profileData.avatar_url,
               status: profileData.status
             }
+          });
+        } else {
+          // Profile doesn't exist, add member without profile
+          members.push({
+            id: member.id,
+            user_id: member.user_id,
+            household_id: member.household_id,
+            role: member.role,
+            created_at: member.created_at,
+            updated_at: member.updated_at
           });
         }
       } else {
@@ -123,11 +132,16 @@ export async function getCurrentUserHousehold(): Promise<HouseholdData | null> {
       .from('households')
       .select('id, name, created_at')
       .eq('id', memberData.household_id)
-      .single();
+      .maybeSingle();
 
     if (householdError) {
       console.error("Error fetching household details:", householdError);
       throw new Error(`Failed to fetch household details: ${householdError.message}`);
+    }
+
+    if (!householdData) {
+      console.log("Household not found");
+      return null; 
     }
 
     const result: HouseholdData = {
@@ -155,7 +169,7 @@ export async function checkUserHasHousehold(): Promise<boolean> {
 
     console.log("Checking if user has a household");
 
-    // Use a count query to avoid potential infinite recursion
+    // Use a simpler query to avoid RLS recursion
     const { count, error } = await supabase
       .from('member_households')
       .select('*', { count: 'exact', head: true })

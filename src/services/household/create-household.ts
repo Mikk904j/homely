@@ -38,13 +38,14 @@ export async function createHousehold({
     const householdId = household.id;
     console.log("Household created with ID:", householdId);
     
-    // Add the user as an admin member
+    // Add the user as an admin member with created_by field
     const { error: memberError } = await supabase
       .from("member_households")
       .insert({
         user_id: userId,
         household_id: householdId,
         role: "admin",
+        created_by: userId, // Add this field to satisfy RLS policy
       });
 
     if (memberError) {

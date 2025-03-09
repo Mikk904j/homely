@@ -114,11 +114,15 @@ export function useCreateHousehold() {
         error: null
       }));
       
-      // Add delay before refreshing household status to ensure database consistency
+      // Add longer delay before refreshing household status to ensure database consistency
       setTimeout(async () => {
         try {
-          await refreshHouseholdStatus();
-          console.log("Household status refreshed after creation");
+          // Try up to 3 times with increasing delays
+          for (let i = 0; i < 3; i++) {
+            await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
+            await refreshHouseholdStatus();
+            console.log(`Household status refresh attempt ${i + 1} completed`);
+          }
         } catch (refreshError) {
           console.error("Failed to refresh household status:", refreshError);
         }

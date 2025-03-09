@@ -39,6 +39,9 @@ export function HouseholdStatusProvider({ children }: { children: ReactNode }) {
       setState(prev => ({ ...prev, loading: true, error: null }));
       
       console.log("Checking household status for user:", user.id);
+      // Add a small delay to ensure DB consistency
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       const hasHousehold = await checkUserHasHousehold();
       console.log("Household status check result:", hasHousehold);
 
@@ -106,6 +109,8 @@ export function HouseholdStatusProvider({ children }: { children: ReactNode }) {
       setState(prev => ({ ...prev, loading: true, error: null }));
       console.log("Manually refreshing household status for user:", user.id);
       
+      // Add delay to ensure DB consistency
+      await new Promise(resolve => setTimeout(resolve, 500));
       const hasHousehold = await checkUserHasHousehold();
       console.log("Manual refresh result:", hasHousehold);
       
