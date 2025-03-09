@@ -68,13 +68,14 @@ export async function joinHousehold({
     throw new Error("You are already a member of this household.");
   }
 
-  // Add the user as a member
+  // Add the user as a member with created_by field
   const { error: joinError } = await supabase
     .from("member_households")
     .insert({
       user_id: userId,
       household_id: invite.household_id,
-      role: "member"
+      role: "member",
+      created_by: userId // Include created_by field
     });
 
   if (joinError) {

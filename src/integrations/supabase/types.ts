@@ -122,6 +122,7 @@ export type Database = {
       member_households: {
         Row: {
           created_at: string | null
+          created_by: string | null
           household_id: string
           id: string
           role: Database["public"]["Enums"]["member_role"]
@@ -130,6 +131,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
+          created_by?: string | null
           household_id: string
           id?: string
           role?: Database["public"]["Enums"]["member_role"]
@@ -138,6 +140,7 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
+          created_by?: string | null
           household_id?: string
           id?: string
           role?: Database["public"]["Enums"]["member_role"]

@@ -45,7 +45,7 @@ export async function createHousehold({
         user_id: userId,
         household_id: householdId,
         role: "admin",
-        created_by: userId, // Add this field to satisfy RLS policy
+        created_by: userId, // Include created_by field to track who created this membership
       });
 
     if (memberError) {

@@ -1,16 +1,13 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import { HouseholdMember, HouseholdData } from "./types";
+import { HouseholdData, HouseholdMember } from "./types";
 
+/**
+ * Get all members of a household with their profile information
+ */
 export async function getHouseholdMembers(householdId: string): Promise<HouseholdMember[]> {
-  if (!householdId) {
-    throw new Error("Household ID is required");
-  }
-
-  console.log("Fetching household members for:", householdId);
-
   try {
-    // First fetch the member_households records
+    // First get all members
     const { data: memberData, error: memberError } = await supabase
       .from('member_households')
       .select('id, user_id, household_id, role, created_at, updated_at')
@@ -22,17 +19,16 @@ export async function getHouseholdMembers(householdId: string): Promise<Househol
     }
 
     if (!memberData || memberData.length === 0) {
-      console.log("No household members found");
       return [];
     }
 
-    // Now get the profile information for each member
+    // Then fetch profile information for each member
     const members: HouseholdMember[] = [];
-    
-    // Process each member one by one to avoid complex joins
+
     for (const member of memberData) {
+      // Only proceed if we have a user ID
       if (member.user_id) {
-        // Get profile for this member
+        // Try to get profile information
         const { data: profileData, error: profileError } = await supabase
           .from('profiles')
           .select('first_name, last_name, phone, avatar_url, status')
@@ -41,7 +37,10 @@ export async function getHouseholdMembers(householdId: string): Promise<Househol
 
         if (profileError) {
           console.warn(`Could not fetch profile for user ${member.user_id}:`, profileError);
-          // Still add the member, but without profile data
+        }
+
+        if (!profileData) {
+          // No profile found, just add the member without profile data
           members.push({
             id: member.id,
             user_id: member.user_id,
@@ -79,55 +78,39 @@ export async function getHouseholdMembers(householdId: string): Promise<Househol
           });
         }
       } else {
-        // Member without user_id
-        members.push({
-          id: member.id,
-          user_id: member.user_id || '',
-          household_id: member.household_id,
-          role: member.role,
-          created_at: member.created_at,
-          updated_at: member.updated_at
-        });
+        // Skip members without user_id
+        console.warn("Found member without user_id:", member);
       }
     }
 
-    console.log("Retrieved household members:", members.length);
     return members;
-  } catch (err) {
-    console.error("Error in getHouseholdMembers:", err);
-    throw err;
+  } catch (error: any) {
+    console.error("Error in getHouseholdMembers:", error);
+    throw error;
   }
 }
 
+/**
+ * Get the current user's household information
+ */
 export async function getCurrentUserHousehold(): Promise<HouseholdData | null> {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (!user) {
-      console.log("No authenticated user found");
-      return null;
-    }
-
-    console.log("Checking for current user's household");
-
-    // First get the household_id for this user - use direct query
+    // First get the user's membership
     const { data: memberData, error: memberError } = await supabase
       .from('member_households')
-      .select('household_id')
-      .eq('user_id', user.id)
+      .select('household_id, role')
       .maybeSingle();
 
     if (memberError) {
-      console.error("Error fetching user household:", memberError);
-      throw new Error(`Failed to fetch user household: ${memberError.message}`);
+      console.error("Error fetching user's household membership:", memberError);
+      throw new Error(`Failed to fetch your household membership: ${memberError.message}`);
     }
 
-    if (!memberData || !memberData.household_id) {
-      console.log("No household found for current user");
-      return null;
+    if (!memberData) {
+      return null; // User doesn't belong to any household
     }
 
-    // Then get the household details separately
+    // Then get the household details
     const { data: householdData, error: householdError } = await supabase
       .from('households')
       .select('id, name, created_at')
@@ -147,44 +130,37 @@ export async function getCurrentUserHousehold(): Promise<HouseholdData | null> {
     const result: HouseholdData = {
       id: householdData.id,
       name: householdData.name,
-      created_at: householdData.created_at
+      userRole: memberData.role,
+      createdAt: householdData.created_at,
     };
-    
-    console.log("Found user household:", result.name);
+
     return result;
-  } catch (err) {
-    console.error("Error in getCurrentUserHousehold:", err);
-    throw err;
+  } catch (error: any) {
+    console.error("Error in getCurrentUserHousehold:", error);
+    throw error;
   }
 }
 
+/**
+ * Check if the current user belongs to any household
+ * Returns true if they do, false otherwise
+ */
 export async function checkUserHasHousehold(): Promise<boolean> {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (!user) {
-      console.log("No authenticated user found");
-      return false;
-    }
-
-    console.log("Checking if user has a household");
-
     // Use a simpler query to avoid RLS recursion
     const { count, error } = await supabase
       .from('member_households')
       .select('*', { count: 'exact', head: true })
-      .eq('user_id', user.id);
+      .limit(1);
 
     if (error) {
-      console.error("Error checking household status:", error);
-      throw error;
+      console.error("Error checking household membership:", error);
+      throw new Error(`Failed to check your household membership: ${error.message}`);
     }
 
-    const hasHousehold = count !== null && count > 0;
-    console.log("User has household:", hasHousehold);
-    return hasHousehold;
-  } catch (err) {
-    console.error("Error in checkUserHasHousehold:", err);
-    return false; // Return false on error to avoid breaking the application
+    return count ? count > 0 : false;
+  } catch (error: any) {
+    console.error("Error in checkUserHasHousehold:", error);
+    throw error;
   }
 }
