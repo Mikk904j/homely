@@ -37,7 +37,17 @@ export function HouseholdStatusProvider({ children }: { children: ReactNode }) {
 
     try {
       setState(prev => ({ ...prev, loading: true, error: null }));
-      const hasHousehold = await checkUserHasHousehold();
+      
+      // Add timeout to prevent infinite loading
+      const timeoutPromise = new Promise<boolean>((_, reject) => {
+        setTimeout(() => reject(new Error("Request timed out")), 5000);
+      });
+      
+      // Race between actual check and timeout
+      const hasHousehold = await Promise.race([
+        checkUserHasHousehold(),
+        timeoutPromise
+      ]);
 
       setState({
         hasHousehold,
@@ -46,17 +56,54 @@ export function HouseholdStatusProvider({ children }: { children: ReactNode }) {
       });
     } catch (error: any) {
       console.error("Error loading household status:", error);
+      
+      // Handle the error but don't get stuck in loading state
       setState({
-        hasHousehold: null,
+        hasHousehold: false, // Assume no household on error
         loading: false,
         error: error.message || "Failed to check household status"
       });
+      
+      // Non-blocking toast for error
+      toast({
+        title: "Connection issue",
+        description: "Couldn't verify household status. Please try refreshing.",
+        variant: "destructive",
+      });
     }
-  }, [user]);
+  }, [user, toast]);
 
   useEffect(() => {
     console.log("HouseholdStatusProvider: User changed, loading status");
-    loadHouseholdStatus();
+    
+    // Only try to load status if we have a user
+    if (user) {
+      loadHouseholdStatus();
+    } else {
+      // Reset state when no user is present
+      setState({
+        hasHousehold: null,
+        loading: false,
+        error: null
+      });
+    }
+    
+    // Force resolve loading state after 8 seconds maximum
+    const timeoutId = setTimeout(() => {
+      setState(prev => {
+        if (prev.loading) {
+          console.log("HouseholdStatusProvider: Force resolving loading state after timeout");
+          return {
+            ...prev,
+            loading: false,
+            error: prev.error || "Request timed out"
+          };
+        }
+        return prev;
+      });
+    }, 8000);
+    
+    return () => clearTimeout(timeoutId);
   }, [user, loadHouseholdStatus]);
 
   const refreshHouseholdStatus = async (): Promise<void> => {
@@ -64,7 +111,16 @@ export function HouseholdStatusProvider({ children }: { children: ReactNode }) {
     
     try {
       setState(prev => ({ ...prev, loading: true, error: null }));
-      const hasHousehold = await checkUserHasHousehold();
+      
+      // Add timeout for refresh operations too
+      const timeoutPromise = new Promise<boolean>((_, reject) => {
+        setTimeout(() => reject(new Error("Request timed out")), 5000);
+      });
+      
+      const hasHousehold = await Promise.race([
+        checkUserHasHousehold(),
+        timeoutPromise
+      ]);
       
       setState(prev => ({
         ...prev,

@@ -41,12 +41,7 @@ const Auth = () => {
           console.log("User is already logged in, checking household status");
         }
         
-        // Always stop the loading state after a maximum of 5 seconds
-        const timer = setTimeout(() => {
-          setLocalLoading(false);
-        }, 5000);
-        
-        return () => clearTimeout(timer);
+        setLocalLoading(false);
       } catch (err: any) {
         console.error("Auth check error:", err);
         setLocalError(err.message || "Failed to verify authentication status");
@@ -60,31 +55,42 @@ const Auth = () => {
     // Set a max timeout to prevent infinite loading
     const maxTimeout = setTimeout(() => {
       setLocalLoading(false);
-    }, 5000);
+    }, 3000);
     
     return () => clearTimeout(maxTimeout);
   }, []);
 
   // When auth state is determined, redirect if needed
   useEffect(() => {
+    // If auth is determined and user is logged in
     if (!authLoading && user) {
       console.log("User is authenticated, hasHousehold:", hasHousehold);
       
-      // Force auth check to complete in a reasonable time
-      setTimeout(() => {
-        if (hasHousehold === true) {
-          navigate(from, { replace: true });
-        } else if (hasHousehold === false) {
-          navigate("/household-setup", { replace: true });
-        }
-      }, 500);
+      // If household status is determined, redirect to appropriate page
+      if (hasHousehold === true) {
+        navigate(from, { replace: true });
+      } else if (hasHousehold === false) {
+        navigate("/household-setup", { replace: true });
+      }
     } else {
-      // Ensure we exit loading state after a maximum time
+      // Ensure we exit loading state in a reasonable time
       setTimeout(() => {
-        setLocalLoading(false);
-      }, 3000);
+        setLocalLoading(prev => prev ? false : prev);
+      }, 2000);
     }
   }, [user, hasHousehold, authLoading, navigate, from]);
+
+  // Force exit from loading state after 4 seconds maximum
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (localLoading || authLoading) {
+        setLocalLoading(false);
+        console.log("Auth: Forced exit from loading state after timeout");
+      }
+    }, 4000);
+    
+    return () => clearTimeout(timeout);
+  }, [localLoading, authLoading]);
 
   if (localLoading && authLoading) {
     return <Loading fullScreen text="Checking authentication status..." />;

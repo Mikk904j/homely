@@ -20,7 +20,7 @@ export async function getHouseholdMembers(householdId: string): Promise<Househol
         role, 
         created_at, 
         updated_at,
-        profiles:profiles(id, first_name, last_name, phone, avatar_url, status)
+        profiles:user_id(id, first_name, last_name, phone, avatar_url, status)
       `)
       .eq('household_id', householdId)
       .order('created_at');
@@ -37,7 +37,7 @@ export async function getHouseholdMembers(householdId: string): Promise<Househol
 
     // Map the joined data to the HouseholdMember interface, with type safety
     const members: HouseholdMember[] = data.map(item => {
-      const profile = item.profiles as any; // Cast to any to resolve typing issues
+      const profile = item.profiles;
       
       return {
         id: item.id,
@@ -75,11 +75,12 @@ export async function getCurrentUserHousehold(): Promise<HouseholdData | null> {
 
     console.log("Checking for current user's household");
 
-    // Check if user has a household
+    // Check if user has a household using a simpler query that won't trigger infinite recursion
     const { data, error } = await supabase
       .from('member_households')
       .select(`
-        household:households (
+        household_id,
+        households:household_id (
           id,
           name,
           created_at
@@ -93,24 +94,22 @@ export async function getCurrentUserHousehold(): Promise<HouseholdData | null> {
       throw new Error(`Failed to fetch user household: ${error.message}`);
     }
 
-    if (!data || !data.household) {
+    if (!data || !data.household_id || !data.households) {
       console.log("No household found for current user");
       return null;
     }
 
-    // Safely convert to HouseholdData
-    const household = data.household as any;
-    if (household && typeof household === 'object' && 'id' in household) {
-      const result: HouseholdData = {
-        id: household.id,
-        name: household.name,
-        created_at: household.created_at
-      };
-      console.log("Found user household:", result.name);
-      return result;
-    }
-
-    return null;
+    // Extract household data
+    const household = data.households;
+    
+    const result: HouseholdData = {
+      id: household.id,
+      name: household.name,
+      created_at: household.created_at
+    };
+    
+    console.log("Found user household:", result.name);
+    return result;
   } catch (err) {
     console.error("Error in getCurrentUserHousehold:", err);
     throw err;
@@ -128,6 +127,7 @@ export async function checkUserHasHousehold(): Promise<boolean> {
 
     console.log("Checking if user has a household");
 
+    // Use a simpler query that won't trigger RLS infinite recursion
     const { count, error } = await supabase
       .from('member_households')
       .select('*', { count: 'exact', head: true })
@@ -135,7 +135,7 @@ export async function checkUserHasHousehold(): Promise<boolean> {
 
     if (error) {
       console.error("Error checking household status:", error);
-      return false;
+      throw error;
     }
 
     const hasHousehold = count !== null && count > 0;
@@ -143,6 +143,7 @@ export async function checkUserHasHousehold(): Promise<boolean> {
     return hasHousehold;
   } catch (err) {
     console.error("Error in checkUserHasHousehold:", err);
+    // Don't throw here, return false to avoid breaking the app flow
     return false;
   }
 }
