@@ -10,51 +10,67 @@ export async function getHouseholdMembers(householdId: string): Promise<Househol
   console.log("Fetching household members for:", householdId);
 
   try {
-    // Use a more straightforward query approach that's type-safe
-    const { data, error } = await supabase
+    // First fetch the member_households records
+    const { data: memberData, error: memberError } = await supabase
       .from('member_households')
-      .select(`
-        id, 
-        user_id, 
-        household_id, 
-        role, 
-        created_at, 
-        updated_at,
-        profiles:user_id(id, first_name, last_name, phone, avatar_url, status)
-      `)
+      .select('id, user_id, household_id, role, created_at, updated_at')
       .eq('household_id', householdId)
       .order('created_at');
 
-    if (error) {
-      console.error("Error fetching household members:", error);
-      throw new Error(`Failed to fetch household members: ${error.message}`);
+    if (memberError) {
+      console.error("Error fetching household members:", memberError);
+      throw new Error(`Failed to fetch household members: ${memberError.message}`);
     }
 
-    if (!data || data.length === 0) {
+    if (!memberData || memberData.length === 0) {
       console.log("No household members found");
       return [];
     }
 
-    // Map the joined data to the HouseholdMember interface, with type safety
-    const members: HouseholdMember[] = data.map(item => {
-      const profile = item.profiles;
-      
-      return {
-        id: item.id,
-        user_id: item.user_id,
-        household_id: item.household_id,
-        role: item.role,
-        created_at: item.created_at,
-        updated_at: item.updated_at,
-        profile: profile ? {
-          first_name: profile.first_name,
-          last_name: profile.last_name,
-          phone: profile.phone,
-          avatar_url: profile.avatar_url,
-          status: profile.status
-        } : undefined
-      };
-    });
+    // Now get the profile information for each member
+    const members: HouseholdMember[] = [];
+    
+    // Process each member one by one to avoid complex joins
+    for (const member of memberData) {
+      if (member.user_id) {
+        // Get profile for this member
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('first_name, last_name, phone, avatar_url, status')
+          .eq('id', member.user_id)
+          .single();
+
+        if (profileError) {
+          console.warn(`Could not fetch profile for user ${member.user_id}:`, profileError);
+        }
+
+        members.push({
+          id: member.id,
+          user_id: member.user_id,
+          household_id: member.household_id,
+          role: member.role,
+          created_at: member.created_at,
+          updated_at: member.updated_at,
+          profile: profileData ? {
+            first_name: profileData.first_name,
+            last_name: profileData.last_name,
+            phone: profileData.phone,
+            avatar_url: profileData.avatar_url,
+            status: profileData.status
+          } : undefined
+        });
+      } else {
+        // Member without user_id
+        members.push({
+          id: member.id,
+          user_id: member.user_id || '',
+          household_id: member.household_id,
+          role: member.role,
+          created_at: member.created_at,
+          updated_at: member.updated_at
+        });
+      }
+    }
 
     console.log("Retrieved household members:", members.length);
     return members;
@@ -75,37 +91,39 @@ export async function getCurrentUserHousehold(): Promise<HouseholdData | null> {
 
     console.log("Checking for current user's household");
 
-    // Check if user has a household using a simpler query that won't trigger infinite recursion
-    const { data, error } = await supabase
+    // First get the household_id for this user
+    const { data: memberData, error: memberError } = await supabase
       .from('member_households')
-      .select(`
-        household_id,
-        households:household_id (
-          id,
-          name,
-          created_at
-        )
-      `)
+      .select('household_id')
       .eq('user_id', user.id)
       .maybeSingle();
 
-    if (error) {
-      console.error("Error fetching user household:", error);
-      throw new Error(`Failed to fetch user household: ${error.message}`);
+    if (memberError) {
+      console.error("Error fetching user household:", memberError);
+      throw new Error(`Failed to fetch user household: ${memberError.message}`);
     }
 
-    if (!data || !data.household_id || !data.households) {
+    if (!memberData || !memberData.household_id) {
       console.log("No household found for current user");
       return null;
     }
 
-    // Extract household data
-    const household = data.households;
-    
+    // Then get the household details separately
+    const { data: householdData, error: householdError } = await supabase
+      .from('households')
+      .select('id, name, created_at')
+      .eq('id', memberData.household_id)
+      .single();
+
+    if (householdError) {
+      console.error("Error fetching household details:", householdError);
+      throw new Error(`Failed to fetch household details: ${householdError.message}`);
+    }
+
     const result: HouseholdData = {
-      id: household.id,
-      name: household.name,
-      created_at: household.created_at
+      id: householdData.id,
+      name: householdData.name,
+      created_at: householdData.created_at
     };
     
     console.log("Found user household:", result.name);
