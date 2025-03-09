@@ -130,8 +130,8 @@ export async function getCurrentUserHousehold(): Promise<HouseholdData | null> {
     const result: HouseholdData = {
       id: householdData.id,
       name: householdData.name,
+      created_at: householdData.created_at,
       userRole: memberData.role,
-      createdAt: householdData.created_at,
     };
 
     return result;
