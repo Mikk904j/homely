@@ -38,16 +38,9 @@ export function HouseholdStatusProvider({ children }: { children: ReactNode }) {
     try {
       setState(prev => ({ ...prev, loading: true, error: null }));
       
-      // Add timeout to prevent infinite loading
-      const timeoutPromise = new Promise<boolean>((_, reject) => {
-        setTimeout(() => reject(new Error("Request timed out")), 5000);
-      });
-      
-      // Race between actual check and timeout
-      const hasHousehold = await Promise.race([
-        checkUserHasHousehold(),
-        timeoutPromise
-      ]);
+      console.log("Checking household status for user:", user.id);
+      const hasHousehold = await checkUserHasHousehold();
+      console.log("Household status check result:", hasHousehold);
 
       setState({
         hasHousehold,
@@ -111,16 +104,10 @@ export function HouseholdStatusProvider({ children }: { children: ReactNode }) {
     
     try {
       setState(prev => ({ ...prev, loading: true, error: null }));
+      console.log("Manually refreshing household status for user:", user.id);
       
-      // Add timeout for refresh operations too
-      const timeoutPromise = new Promise<boolean>((_, reject) => {
-        setTimeout(() => reject(new Error("Request timed out")), 5000);
-      });
-      
-      const hasHousehold = await Promise.race([
-        checkUserHasHousehold(),
-        timeoutPromise
-      ]);
+      const hasHousehold = await checkUserHasHousehold();
+      console.log("Manual refresh result:", hasHousehold);
       
       setState(prev => ({
         ...prev,

@@ -42,23 +42,33 @@ export async function getHouseholdMembers(householdId: string): Promise<Househol
 
         if (profileError) {
           console.warn(`Could not fetch profile for user ${member.user_id}:`, profileError);
+          // Still add the member, but without profile data
+          members.push({
+            id: member.id,
+            user_id: member.user_id,
+            household_id: member.household_id,
+            role: member.role,
+            created_at: member.created_at,
+            updated_at: member.updated_at
+          });
+        } else {
+          // Add member with profile data
+          members.push({
+            id: member.id,
+            user_id: member.user_id,
+            household_id: member.household_id,
+            role: member.role,
+            created_at: member.created_at,
+            updated_at: member.updated_at,
+            profile: {
+              first_name: profileData.first_name,
+              last_name: profileData.last_name,
+              phone: profileData.phone,
+              avatar_url: profileData.avatar_url,
+              status: profileData.status
+            }
+          });
         }
-
-        members.push({
-          id: member.id,
-          user_id: member.user_id,
-          household_id: member.household_id,
-          role: member.role,
-          created_at: member.created_at,
-          updated_at: member.updated_at,
-          profile: profileData ? {
-            first_name: profileData.first_name,
-            last_name: profileData.last_name,
-            phone: profileData.phone,
-            avatar_url: profileData.avatar_url,
-            status: profileData.status
-          } : undefined
-        });
       } else {
         // Member without user_id
         members.push({
@@ -91,7 +101,7 @@ export async function getCurrentUserHousehold(): Promise<HouseholdData | null> {
 
     console.log("Checking for current user's household");
 
-    // First get the household_id for this user
+    // First get the household_id for this user - use direct query
     const { data: memberData, error: memberError } = await supabase
       .from('member_households')
       .select('household_id')
@@ -145,7 +155,7 @@ export async function checkUserHasHousehold(): Promise<boolean> {
 
     console.log("Checking if user has a household");
 
-    // Use a simpler query that won't trigger RLS infinite recursion
+    // Use a count query to avoid potential infinite recursion
     const { count, error } = await supabase
       .from('member_households')
       .select('*', { count: 'exact', head: true })
@@ -161,7 +171,6 @@ export async function checkUserHasHousehold(): Promise<boolean> {
     return hasHousehold;
   } catch (err) {
     console.error("Error in checkUserHasHousehold:", err);
-    // Don't throw here, return false to avoid breaking the app flow
-    return false;
+    return false; // Return false on error to avoid breaking the application
   }
 }

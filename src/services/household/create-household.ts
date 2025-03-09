@@ -16,7 +16,8 @@ export async function createHousehold({
     throw new Error("User ID is required to create a household");
   }
 
-  // Start a transaction using RPC to avoid RLS issues
+  console.log("Creating household:", name, "for user:", userId);
+
   try {
     // First create the household
     const { data: household, error: householdError } = await supabase
@@ -35,6 +36,7 @@ export async function createHousehold({
     }
 
     const householdId = household.id;
+    console.log("Household created with ID:", householdId);
     
     // Add the user as an admin member
     const { error: memberError } = await supabase
@@ -57,6 +59,8 @@ export async function createHousehold({
       throw new Error(`Failed to add you to household: ${memberError.message}`);
     }
 
+    console.log("User added as admin to household");
+
     // Generate and create an invite code
     const generatedInviteCode = generateInviteCode();
     const { error: inviteError } = await supabase
@@ -75,6 +79,7 @@ export async function createHousehold({
       return { householdId, inviteCode: "" };
     }
 
+    console.log("Invite code created:", generatedInviteCode);
     return { householdId, inviteCode: generatedInviteCode };
   } catch (error: any) {
     console.error("Household creation process failed:", error);

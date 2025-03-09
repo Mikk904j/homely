@@ -95,6 +95,8 @@ export function useCreateHousehold() {
     }));
 
     try {
+      console.log("Creating household with user ID:", user.id);
+      
       const result = await householdService.createHousehold({
         name: state.householdName.trim(),
         theme: state.householdTheme,
@@ -112,8 +114,15 @@ export function useCreateHousehold() {
         error: null
       }));
       
-      // Refresh the user's household status
-      await refreshHouseholdStatus();
+      // Add delay before refreshing household status to ensure database consistency
+      setTimeout(async () => {
+        try {
+          await refreshHouseholdStatus();
+          console.log("Household status refreshed after creation");
+        } catch (refreshError) {
+          console.error("Failed to refresh household status:", refreshError);
+        }
+      }, 1000);
       
       toast({
         title: "Success!",
