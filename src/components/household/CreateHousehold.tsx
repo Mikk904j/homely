@@ -11,6 +11,8 @@ export const CreateHousehold = ({ onBack }: CreateHouseholdProps) => {
   const {
     householdName,
     setHouseholdName,
+    householdDescription,
+    setHouseholdDescription,
     householdTheme,
     setHouseholdTheme,
     isLoading,
@@ -35,6 +37,8 @@ export const CreateHousehold = ({ onBack }: CreateHouseholdProps) => {
       <CreateHouseholdCard 
         householdName={householdName}
         setHouseholdName={setHouseholdName}
+        householdDescription={householdDescription}
+        setHouseholdDescription={setHouseholdDescription}
         householdTheme={householdTheme}
         setHouseholdTheme={setHouseholdTheme}
         isLoading={isLoading}

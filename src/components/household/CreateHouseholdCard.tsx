@@ -9,6 +9,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 interface CreateHouseholdCardProps {
   householdName: string;
   setHouseholdName: (name: string) => void;
+  householdDescription: string;
+  setHouseholdDescription: (description: string) => void;
   householdTheme: string;
   setHouseholdTheme: (theme: string) => void;
   isLoading: boolean;
@@ -19,6 +21,8 @@ interface CreateHouseholdCardProps {
 export const CreateHouseholdCard = ({
   householdName,
   setHouseholdName,
+  householdDescription,
+  setHouseholdDescription,
   householdTheme,
   setHouseholdTheme,
   isLoading,
@@ -67,6 +71,8 @@ export const CreateHouseholdCard = ({
           <HouseholdForm 
             householdName={householdName}
             setHouseholdName={setHouseholdName}
+            householdDescription={householdDescription}
+            setHouseholdDescription={setHouseholdDescription}
             householdTheme={householdTheme}
             setHouseholdTheme={setHouseholdTheme}
             isLoading={isLoading}

@@ -27,7 +27,7 @@ export async function createHousehold({
         name: name.trim(),
         created_by: userId,
         theme,
-        description
+        description: description.trim()
       })
       .select("id")
       .single();

@@ -10,6 +10,7 @@ type CreateHouseholdStep = 'info' | 'success';
 
 interface CreateHouseholdState {
   householdName: string;
+  householdDescription: string;
   householdTheme: HouseholdTheme;
   isLoading: boolean;
   step: CreateHouseholdStep;
@@ -20,6 +21,7 @@ interface CreateHouseholdState {
 export function useCreateHousehold() {
   const [state, setState] = useState<CreateHouseholdState>({
     householdName: "",
+    householdDescription: "",
     householdTheme: "default",
     isLoading: false,
     step: 'info',
@@ -35,6 +37,14 @@ export function useCreateHousehold() {
     setState(prev => ({ 
       ...prev, 
       householdName: name,
+      error: null 
+    }));
+  };
+
+  const setHouseholdDescription = (description: string) => {
+    setState(prev => ({ 
+      ...prev, 
+      householdDescription: description,
       error: null 
     }));
   };
@@ -63,6 +73,17 @@ export function useCreateHousehold() {
       toast({
         title: "Input Too Long",
         description: "Household name must be 50 characters or less",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    if (state.householdDescription && state.householdDescription.length > 200) {
+      setState(prev => ({ ...prev, error: "Household description must be 200 characters or less" }));
+      
+      toast({
+        title: "Description Too Long",
+        description: "Household description must be 200 characters or less",
         variant: "destructive",
       });
       return false;
@@ -99,6 +120,7 @@ export function useCreateHousehold() {
       
       const result = await householdService.createHousehold({
         name: state.householdName.trim(),
+        description: state.householdDescription.trim(),
         theme: state.householdTheme,
         userId: user.id
       });
@@ -167,6 +189,8 @@ export function useCreateHousehold() {
   return {
     householdName: state.householdName,
     setHouseholdName,
+    householdDescription: state.householdDescription,
+    setHouseholdDescription,
     householdTheme: state.householdTheme,
     setHouseholdTheme,
     isLoading: state.isLoading,

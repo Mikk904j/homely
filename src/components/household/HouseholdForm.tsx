@@ -6,10 +6,13 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Home } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
+import { Textarea } from "@/components/ui/textarea";
 
 interface HouseholdFormProps {
   householdName: string;
   setHouseholdName: (name: string) => void;
+  householdDescription: string;
+  setHouseholdDescription: (description: string) => void;
   householdTheme: string;
   setHouseholdTheme: (theme: string) => void;
   isLoading: boolean;
@@ -19,6 +22,8 @@ interface HouseholdFormProps {
 export const HouseholdForm = ({
   householdName,
   setHouseholdName,
+  householdDescription,
+  setHouseholdDescription,
   householdTheme,
   setHouseholdTheme,
   isLoading,
@@ -70,6 +75,24 @@ export const HouseholdForm = ({
         <p id="nameHelp" className="text-xs text-muted-foreground">
           Choose a descriptive name for your household
         </p>
+      </div>
+      
+      <div className="space-y-2">
+        <div className="flex justify-between items-center">
+          <Label htmlFor="householdDescription">Description (Optional)</Label>
+          <span className="text-xs text-muted-foreground">
+            {householdDescription.length}/200
+          </span>
+        </div>
+        <Textarea
+          id="householdDescription"
+          value={householdDescription}
+          onChange={(e) => setHouseholdDescription(e.target.value)}
+          placeholder="Briefly describe your household"
+          className="resize-none"
+          disabled={isLoading}
+          maxLength={200}
+        />
       </div>
 
       <div className="space-y-2">
