@@ -135,15 +135,26 @@ export function useCreateHousehold() {
     } catch (error: any) {
       console.error("Household creation failed:", error);
       
+      // Enhanced error handling with more specific messages
+      let errorMessage = error.message || "Failed to create household. Please try again.";
+      
+      if (errorMessage.includes("violates row level security")) {
+        errorMessage = "You don't have permission to create a household. Please check your account status.";
+      } else if (errorMessage.includes("duplicate key")) {
+        errorMessage = "A household with this name already exists. Please try a different name.";
+      } else if (errorMessage.includes("network error")) {
+        errorMessage = "Network error. Please check your connection and try again.";
+      }
+      
       setState(prev => ({ 
         ...prev, 
         isLoading: false,
-        error: error.message || "Failed to create household. Please try again." 
+        error: errorMessage
       }));
       
       toast({
         title: "Error",
-        description: error.message || "Failed to create household. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
     }

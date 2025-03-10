@@ -3,6 +3,7 @@ export interface CreateHouseholdParams {
   name: string;
   theme?: string;
   userId: string;
+  description?: string;
 }
 
 export interface HouseholdCreationResult {
@@ -43,4 +44,6 @@ export interface HouseholdData {
   name: string;
   created_at: string;
   userRole: MemberRole;
+  description?: string;
+  theme?: string;
 }

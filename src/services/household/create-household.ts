@@ -6,7 +6,8 @@ import { CreateHouseholdParams, HouseholdCreationResult } from "./types";
 export async function createHousehold({ 
   name, 
   theme = "default", 
-  userId 
+  userId,
+  description = "" 
 }: CreateHouseholdParams): Promise<HouseholdCreationResult> {
   if (!name.trim()) {
     throw new Error("Household name is required");
@@ -26,6 +27,7 @@ export async function createHousehold({
         name: name.trim(),
         created_by: userId,
         theme,
+        description
       })
       .select("id")
       .single();
@@ -45,7 +47,7 @@ export async function createHousehold({
         user_id: userId,
         household_id: householdId,
         role: "admin",
-        created_by: userId, // Include created_by field to track who created this membership
+        created_by: userId,
       });
 
     if (memberError) {
