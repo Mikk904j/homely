@@ -42,5 +42,5 @@ export interface HouseholdData {
   id: string;
   name: string;
   created_at: string;
-  userRole?: MemberRole; // Added the missing userRole property
+  userRole: MemberRole;
 }

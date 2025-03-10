@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -58,7 +57,7 @@ export const LoginForm = () => {
       console.log("Attempting login with email:", formData.email);
       
       const { error } = await supabase.auth.signInWithPassword({
-        email: formData.email,
+        email: formData.email.trim(),
         password: formData.password,
       });
 
@@ -66,10 +65,8 @@ export const LoginForm = () => {
 
       console.log("Login successful, checking household status");
       
-      // Check if user has a household
       await refreshHouseholdStatus();
 
-      // Get the redirect path from location state or default to home
       const from = (location.state as any)?.from?.pathname || "/";
       
       navigate(from, { replace: true });
@@ -78,13 +75,15 @@ export const LoginForm = () => {
         description: "Successfully logged in",
       });
     } catch (error: any) {
-      let errorMessage = "Check your email and password";
+      let errorMessage = "Invalid email or password";
       
       if (error.message) {
         if (error.message.includes("Invalid login")) {
           errorMessage = "Invalid email or password";
         } else if (error.message.includes("Email not confirmed")) {
           errorMessage = "Please verify your email before logging in";
+        } else if (error.message.includes("Too many attempts")) {
+          errorMessage = "Too many login attempts. Please try again later.";
         } else {
           errorMessage = error.message;
         }

@@ -1,11 +1,12 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import type { MemberFormData, HouseholdMember } from "@/types/members";
-import { MemberRole } from "@/services/household/types";
+import type { MemberFormData } from "@/types/members";
+import type { HouseholdMember, MemberRole } from "@/services/household/types";
 
 interface MemberFormProps {
   member?: HouseholdMember;
@@ -34,9 +35,9 @@ export const MemberForm = ({ member, householdId, onSuccess, onCancel }: MemberF
         const { error: profileError } = await supabase
           .from('profiles')
           .update({
-            first_name: formData.first_name,
-            last_name: formData.last_name,
-            phone: formData.phone,
+            first_name: formData.first_name.trim(),
+            last_name: formData.last_name.trim(),
+            phone: formData.phone.trim(),
           })
           .eq('id', member.user_id);
 
@@ -50,6 +51,11 @@ export const MemberForm = ({ member, householdId, onSuccess, onCancel }: MemberF
           .eq('id', member.id);
 
         if (memberError) throw memberError;
+
+        toast({
+          title: "Success",
+          description: "Member updated successfully",
+        });
       } else {
         // Create new member - first get current user
         const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -60,9 +66,9 @@ export const MemberForm = ({ member, householdId, onSuccess, onCancel }: MemberF
         const { error: profileError } = await supabase
           .from('profiles')
           .update({
-            first_name: formData.first_name,
-            last_name: formData.last_name,
-            phone: formData.phone,
+            first_name: formData.first_name.trim(),
+            last_name: formData.last_name.trim(),
+            phone: formData.phone.trim(),
           })
           .eq('id', user.id);
 
@@ -74,18 +80,21 @@ export const MemberForm = ({ member, householdId, onSuccess, onCancel }: MemberF
           .insert({
             user_id: user.id,
             household_id: householdId,
-            role: formData.role,
+            role: formData.role as MemberRole,
+            created_by: user.id,
           });
 
         if (memberError) throw memberError;
+
+        toast({
+          title: "Success",
+          description: "Member added successfully",
+        });
       }
 
-      toast({
-        title: "Success",
-        description: `Member ${member ? 'updated' : 'added'} successfully`,
-      });
       onSuccess();
     } catch (error: any) {
+      console.error("Error in member form:", error);
       toast({
         title: "Error",
         description: error.message,
@@ -105,6 +114,7 @@ export const MemberForm = ({ member, householdId, onSuccess, onCancel }: MemberF
             value={formData.first_name}
             onChange={(e) => setFormData(prev => ({ ...prev, first_name: e.target.value }))}
             placeholder="Enter first name"
+            disabled={isSubmitting}
           />
         </div>
         <div className="space-y-2">
@@ -113,6 +123,7 @@ export const MemberForm = ({ member, householdId, onSuccess, onCancel }: MemberF
             value={formData.last_name}
             onChange={(e) => setFormData(prev => ({ ...prev, last_name: e.target.value }))}
             placeholder="Enter last name"
+            disabled={isSubmitting}
           />
         </div>
       </div>
@@ -122,6 +133,8 @@ export const MemberForm = ({ member, householdId, onSuccess, onCancel }: MemberF
           value={formData.phone}
           onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
           placeholder="Enter phone number"
+          disabled={isSubmitting}
+          type="tel"
         />
       </div>
       <div className="space-y-2">
@@ -129,6 +142,7 @@ export const MemberForm = ({ member, householdId, onSuccess, onCancel }: MemberF
         <Select
           value={formData.role}
           onValueChange={(value: MemberRole) => setFormData(prev => ({ ...prev, role: value }))}
+          disabled={isSubmitting}
         >
           <SelectTrigger>
             <SelectValue placeholder="Select role" />
@@ -149,7 +163,7 @@ export const MemberForm = ({ member, householdId, onSuccess, onCancel }: MemberF
           Cancel
         </Button>
         <Button type="submit" disabled={isSubmitting}>
-          {member ? 'Update' : 'Add'} Member
+          {isSubmitting ? "Saving..." : member ? "Update Member" : "Add Member"}
         </Button>
       </div>
     </form>
