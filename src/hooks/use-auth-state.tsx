@@ -13,6 +13,7 @@ interface AuthState {
 
 interface AuthContextType extends AuthState {
   signOut: () => Promise<void>;
+  clearAuthCookies: () => Promise<void>;
 }
 
 const AuthStateContext = createContext<AuthContextType | undefined>(undefined);
@@ -25,6 +26,42 @@ export function AuthStateProvider({ children }: { children: ReactNode }) {
     error: null
   });
   const { toast } = useToast();
+
+  // Function to clear auth cookies
+  const clearAuthCookies = async () => {
+    try {
+      console.log("Attempting to clear auth cookies");
+      
+      // Force clear the session
+      await supabase.auth.signOut({ scope: "local" });
+      
+      // Reset state 
+      setState({
+        user: null,
+        session: null,
+        loading: false,
+        error: null
+      });
+      
+      // Clear browser localStorage related to Supabase auth
+      localStorage.removeItem("supabase.auth.token");
+      
+      // Display notification to the user
+      toast({
+        title: "Session Reset",
+        description: "Your authentication session has been reset due to a timeout.",
+      });
+      
+      console.log("Auth cookies successfully cleared");
+    } catch (error: any) {
+      console.error("Error clearing auth cookies:", error);
+      toast({
+        title: "Error",
+        description: "Failed to reset your session. Please try refreshing the page.",
+        variant: "destructive",
+      });
+    }
+  };
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -173,7 +210,8 @@ export function AuthStateProvider({ children }: { children: ReactNode }) {
   return (
     <AuthStateContext.Provider value={{ 
       ...state,
-      signOut
+      signOut,
+      clearAuthCookies
     }}>
       {children}
     </AuthStateContext.Provider>

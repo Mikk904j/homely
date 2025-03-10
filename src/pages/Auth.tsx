@@ -11,6 +11,7 @@ import { Loading } from "@/components/ui/loading";
 import { useToast } from "@/components/ui/use-toast";
 import { AlertCircle, RotateCcw } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
+import { useAuthState } from "@/hooks/use-auth-state";
 
 const Auth = () => {
   const [activeTab, setActiveTab] = useState<"login" | "register">("login");
@@ -20,6 +21,7 @@ const Auth = () => {
   const location = useLocation();
   const { toast } = useToast();
   const { user, hasHousehold, loading: authLoading } = useAuth();
+  const { clearAuthCookies } = useAuthState();
 
   // This retains the original URL the user was trying to access
   const from = (location.state as any)?.from?.pathname || "/";
@@ -80,17 +82,34 @@ const Auth = () => {
     }
   }, [user, hasHousehold, authLoading, navigate, from]);
 
-  // Force exit from loading state after 4 seconds maximum
+  // Handle auth check timeout and reset auth state if needed
   useEffect(() => {
-    const timeout = setTimeout(() => {
+    let timeoutId: number | undefined;
+    
+    if (localLoading || authLoading) {
+      // Set a timeout to clear auth cookies if auth check takes too long
+      timeoutId = window.setTimeout(() => {
+        if (localLoading || authLoading) {
+          console.log("Auth check timeout reached, resetting auth state");
+          clearAuthCookies();
+          setLocalLoading(false);
+        }
+      }, 8000);
+    }
+    
+    // Force exit from loading state after 4 seconds maximum
+    const forceExitTimeoutId = window.setTimeout(() => {
       if (localLoading || authLoading) {
         setLocalLoading(false);
         console.log("Auth: Forced exit from loading state after timeout");
       }
     }, 4000);
     
-    return () => clearTimeout(timeout);
-  }, [localLoading, authLoading]);
+    return () => {
+      window.clearTimeout(timeoutId);
+      window.clearTimeout(forceExitTimeoutId);
+    };
+  }, [localLoading, authLoading, clearAuthCookies]);
 
   if (localLoading && authLoading) {
     return <Loading fullScreen text="Checking authentication status..." />;

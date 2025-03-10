@@ -22,7 +22,7 @@ export function HouseholdStatusProvider({ children }: { children: ReactNode }) {
     loading: true,
     error: null
   });
-  const { user } = useAuthState();
+  const { user, clearAuthCookies } = useAuthState();
   const { toast } = useToast();
 
   const loadHouseholdStatus = useCallback(async () => {
@@ -111,8 +111,19 @@ export function HouseholdStatusProvider({ children }: { children: ReactNode }) {
       });
     }, 5000);
     
-    return () => clearTimeout(timeoutId);
-  }, [user, loadHouseholdStatus]);
+    // Add a critical timeout to clear auth cookies if loading takes too long
+    const criticalTimeoutId = setTimeout(() => {
+      if (state.loading) {
+        console.log("HouseholdStatusProvider: Critical timeout reached, clearing auth cookies");
+        clearAuthCookies();
+      }
+    }, 12000);
+    
+    return () => {
+      clearTimeout(timeoutId);
+      clearTimeout(criticalTimeoutId);
+    };
+  }, [user, loadHouseholdStatus, state.loading, clearAuthCookies]);
 
   const refreshHouseholdStatus = async (): Promise<void> => {
     if (!user) return;

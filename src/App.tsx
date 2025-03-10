@@ -5,7 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./hooks/use-auth";
-import { AuthStateProvider } from "./hooks/use-auth-state";
+import { AuthStateProvider, useAuthState } from "./hooks/use-auth-state";
 import { HouseholdStatusProvider } from "./hooks/use-household-status"; 
 import { Loading } from "./components/ui/loading";
 import { AnimatePresence, motion } from "framer-motion";
@@ -40,6 +40,7 @@ interface PrivateRouteProps {
 
 const PrivateRoute = ({ children, requireHousehold = true }: PrivateRouteProps) => {
   const { user, loading, hasHousehold } = useAuth();
+  const { clearAuthCookies } = useAuthState();
   const location = useLocation();
   const [loadingTimeout, setLoadingTimeout] = useState(false);
   const [criticalTimeout, setCriticalTimeout] = useState(false);
@@ -58,6 +59,8 @@ const PrivateRoute = ({ children, requireHousehold = true }: PrivateRouteProps) 
       // Second timeout for critical fail case
       criticalTimer = window.setTimeout(() => {
         setCriticalTimeout(true);
+        // Clear auth cookies if auth check is taking too long
+        clearAuthCookies();
       }, 10000); // 10 seconds timeout
     } else {
       // Reset timeouts when loading completes
@@ -69,7 +72,7 @@ const PrivateRoute = ({ children, requireHousehold = true }: PrivateRouteProps) 
       window.clearTimeout(timer);
       window.clearTimeout(criticalTimer);
     };
-  }, [loading]);
+  }, [loading, clearAuthCookies]);
 
   // If we hit critical timeout, provide a reload option
   if (criticalTimeout) {
@@ -77,7 +80,7 @@ const PrivateRoute = ({ children, requireHousehold = true }: PrivateRouteProps) 
       <div className="flex flex-col items-center justify-center min-h-screen p-4 text-center">
         <h2 className="text-2xl font-bold mb-4">Authentication Check Failed</h2>
         <p className="mb-6 text-muted-foreground">
-          We're having trouble verifying your authentication status.
+          We've reset your authentication session due to a timeout issue.
         </p>
         <Button onClick={() => window.location.reload()} className="flex items-center">
           <RefreshCcw className="mr-2 h-4 w-4" />
@@ -125,6 +128,7 @@ const PrivateRoute = ({ children, requireHousehold = true }: PrivateRouteProps) 
 
 const AuthCheck = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
+  const { clearAuthCookies } = useAuthState();
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -132,19 +136,29 @@ const AuthCheck = ({ children }: { children: React.ReactNode }) => {
   
   useEffect(() => {
     let timer: number | undefined;
+    let criticalTimer: number | undefined;
     
     if (loading) {
       timer = window.setTimeout(() => {
         setLoadingTimeout(true);
       }, 3000); // 3 seconds timeout
+
+      // Add a timeout to clear cookies if auth check takes too long
+      criticalTimer = window.setTimeout(() => {
+        if (loading) {
+          console.log("Auth check taking too long, clearing cookies");
+          clearAuthCookies();
+        }
+      }, 8000); // 8 seconds timeout
     } else {
       setLoadingTimeout(false);
     }
     
     return () => {
       window.clearTimeout(timer);
+      window.clearTimeout(criticalTimer);
     };
-  }, [loading]);
+  }, [loading, clearAuthCookies]);
   
   useEffect(() => {
     if (!loading && !user && location.pathname !== "/auth") {
