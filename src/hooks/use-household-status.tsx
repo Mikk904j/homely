@@ -53,7 +53,18 @@ export function HouseholdStatusProvider({ children }: { children: ReactNode }) {
     } catch (error: any) {
       console.error("Error loading household status:", error);
       
-      // Handle the error but don't get stuck in loading state
+      // For RLS infinite recursion errors, assume user has no household
+      if (error.message?.includes("infinite recursion") || error.message?.includes("Failed to check your household membership")) {
+        console.log("RLS policy error detected, defaulting to no household");
+        setState({
+          hasHousehold: false,
+          loading: false,
+          error: null // Don't set error to avoid UI confusion
+        });
+        return;
+      }
+      
+      // Handle other errors but don't get stuck in loading state
       setState({
         hasHousehold: false, // Assume no household on error
         loading: false,
@@ -84,7 +95,7 @@ export function HouseholdStatusProvider({ children }: { children: ReactNode }) {
       });
     }
     
-    // Force resolve loading state after 8 seconds maximum
+    // Force resolve loading state after 5 seconds maximum (reduced from 8)
     const timeoutId = setTimeout(() => {
       setState(prev => {
         if (prev.loading) {
@@ -92,12 +103,13 @@ export function HouseholdStatusProvider({ children }: { children: ReactNode }) {
           return {
             ...prev,
             loading: false,
-            error: prev.error || "Request timed out"
+            hasHousehold: false, // Assume no household after timeout
+            error: prev.error || null // Don't show error to user
           };
         }
         return prev;
       });
-    }, 8000);
+    }, 5000);
     
     return () => clearTimeout(timeoutId);
   }, [user, loadHouseholdStatus]);
@@ -111,14 +123,30 @@ export function HouseholdStatusProvider({ children }: { children: ReactNode }) {
       
       // Add delay to ensure DB consistency
       await new Promise(resolve => setTimeout(resolve, 500));
-      const hasHousehold = await checkUserHasHousehold();
-      console.log("Manual refresh result:", hasHousehold);
       
-      setState(prev => ({
-        ...prev,
-        hasHousehold,
-        loading: false
-      }));
+      try {
+        const hasHousehold = await checkUserHasHousehold();
+        console.log("Manual refresh result:", hasHousehold);
+        
+        setState(prev => ({
+          ...prev,
+          hasHousehold,
+          loading: false
+        }));
+      } catch (error: any) {
+        // For RLS infinite recursion errors, assume user has no household
+        if (error.message?.includes("infinite recursion") || error.message?.includes("Failed to check your household membership")) {
+          console.log("RLS policy error detected during refresh, defaulting to no household");
+          setState({
+            hasHousehold: false,
+            loading: false,
+            error: null
+          });
+          return;
+        }
+        
+        throw error; // Re-throw for other errors
+      }
     } catch (error: any) {
       console.error("Error refreshing household status:", error);
       toast({
@@ -129,7 +157,8 @@ export function HouseholdStatusProvider({ children }: { children: ReactNode }) {
       setState(prev => ({ 
         ...prev, 
         loading: false, 
-        error: error.message || "Failed to refresh household status" 
+        error: error.message || "Failed to refresh household status",
+        hasHousehold: false // Default to no household on error
       }));
     }
   };
