@@ -1,115 +1,104 @@
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { createContext, useContext, useState, ReactNode, useEffect, useCallback } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "./use-auth";
+import { checkUserHasHousehold } from "@/services/household/get-household";
 
-export function useHousehold() {
-  const { user } = useAuth();
+interface HouseholdState {
+  hasHousehold: boolean | null;
+  loading: boolean;
+  error: string | null;
+}
+
+interface HouseholdContextType extends HouseholdState {
+  refreshHouseholdStatus: () => Promise<void>;
+}
+
+const HouseholdContext = createContext<HouseholdContextType | undefined>(undefined);
+
+export function HouseholdProvider({ children }: { children: ReactNode }) {
+  const [state, setState] = useState<HouseholdState>({
+    hasHousehold: null,
+    loading: false,
+    error: null
+  });
+  const { user, initialized } = useAuth();
   const { toast } = useToast();
-  const queryClient = useQueryClient();
 
-  const { data: household, isLoading } = useQuery({
-    queryKey: ['household'],
-    queryFn: async () => {
-      if (!user) throw new Error("Not authenticated");
+  const loadHouseholdStatus = useCallback(async () => {
+    if (!user) {
+      setState({
+        hasHousehold: null,
+        loading: false,
+        error: null
+      });
+      return;
+    }
+
+    setState(prev => ({ ...prev, loading: true, error: null }));
+
+    try {
+      console.log("Checking household status for user:", user.id);
+      const hasHousehold = await checkUserHasHousehold();
+      console.log("Household status result:", hasHousehold);
+
+      setState({
+        hasHousehold,
+        loading: false,
+        error: null
+      });
+    } catch (error: any) {
+      console.error("Error loading household status:", error);
       
-      const { data, error } = await supabase
-        .from('households')
-        .select('*')
-        .single();
-
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!user,
-    meta: {
-      onError: (error: any) => {
+      // Handle RLS policy errors gracefully
+      if (error.message?.includes("infinite recursion") || 
+          error.message?.includes("Failed to check your household membership")) {
+        setState({
+          hasHousehold: false,
+          loading: false,
+          error: null
+        });
+      } else {
+        setState({
+          hasHousehold: false,
+          loading: false,
+          error: error.message || "Failed to check household status"
+        });
+        
         toast({
-          title: "Error loading household data",
-          description: error.message,
+          title: "Connection issue",
+          description: "Couldn't verify household status. Please try refreshing.",
           variant: "destructive",
         });
       }
     }
-  });
+  }, [user, toast]);
 
-  const updateHousehold = useMutation({
-    mutationFn: async (updatedData: any) => {
-      if (!household?.id) throw new Error("No household found");
-      
-      const { data, error } = await supabase
-        .from('households')
-        .update(updatedData)
-        .eq('id', household.id)
-        .select()
-        .single();
-        
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: () => {
-      toast({
-        title: "Success",
-        description: "Household updated successfully",
-      });
-      queryClient.invalidateQueries({ queryKey: ['household'] });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Error updating household",
-        description: error.message,
-        variant: "destructive",
-      });
+  // Load household status when auth is initialized and user changes
+  useEffect(() => {
+    if (initialized) {
+      loadHouseholdStatus();
     }
-  });
+  }, [initialized, user, loadHouseholdStatus]);
 
-  const createInviteCode = useMutation({
-    mutationFn: async () => {
-      if (!household?.id || !user) throw new Error("Missing required data");
-      
-      // Generate a random code
-      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-      let code = '';
-      for (let i = 0; i < 8; i++) {
-        code += chars.charAt(Math.floor(Math.random() * chars.length));
-      }
-      
-      const { data, error } = await supabase
-        .from('household_invites')
-        .insert({
-          household_id: household.id,
-          code,
-          created_by: user.id,
-          expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-          uses_remaining: 10
-        })
-        .select()
-        .single();
-        
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: (data) => {
-      toast({
-        title: "Invite Code Created",
-        description: `New invite code: ${data.code}`,
-      });
-      queryClient.invalidateQueries({ queryKey: ['household-invites'] });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Error creating invite code",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
-  });
-
-  return {
-    household,
-    isLoading,
-    updateHousehold,
-    createInviteCode,
+  const refreshHouseholdStatus = async (): Promise<void> => {
+    await loadHouseholdStatus();
   };
+
+  return (
+    <HouseholdContext.Provider value={{ 
+      ...state,
+      refreshHouseholdStatus
+    }}>
+      {children}
+    </HouseholdContext.Provider>
+  );
 }
+
+export const useHousehold = () => {
+  const context = useContext(HouseholdContext);
+  if (context === undefined) {
+    throw new Error("useHousehold must be used within a HouseholdProvider");
+  }
+  return context;
+};

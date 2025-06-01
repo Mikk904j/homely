@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -6,7 +7,6 @@ import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, AlertCircle } from "lucide-react";
 import { z } from "zod";
-import { useAuth } from "@/hooks/use-auth";
 
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -23,7 +23,6 @@ export const LoginForm = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
-  const { refreshHouseholdStatus } = useAuth();
 
   const validateForm = () => {
     try {
@@ -63,13 +62,11 @@ export const LoginForm = () => {
 
       if (error) throw error;
 
-      console.log("Login successful, checking household status");
+      console.log("Login successful");
       
-      await refreshHouseholdStatus();
-
       const from = (location.state as any)?.from?.pathname || "/";
-      
       navigate(from, { replace: true });
+      
       toast({
         title: "Welcome back!",
         description: "Successfully logged in",

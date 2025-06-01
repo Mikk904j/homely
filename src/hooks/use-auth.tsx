@@ -1,38 +1,119 @@
 
-import { createContext, useContext, ReactNode } from "react";
-import { useAuthState } from "./use-auth-state";
-import { useHouseholdStatus } from "./use-household-status";
+import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Session, User } from "@supabase/supabase-js";
+import { useToast } from "@/components/ui/use-toast";
 
-interface AuthContextType {
-  user: any;
+interface AuthState {
+  user: User | null;
+  session: Session | null;
   loading: boolean;
-  error: string | null;
-  hasHousehold: boolean | null;
-  refreshHouseholdStatus: () => Promise<void>;
+  initialized: boolean;
+}
+
+interface AuthContextType extends AuthState {
+  signOut: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const { user, loading: authLoading, error } = useAuthState();
-  const { 
-    hasHousehold, 
-    loading: householdLoading, 
-    refreshHouseholdStatus 
-  } = useHouseholdStatus();
+  const [state, setState] = useState<AuthState>({
+    user: null,
+    session: null,
+    loading: true,
+    initialized: false
+  });
+  const { toast } = useToast();
 
-  const loading = authLoading || householdLoading;
+  useEffect(() => {
+    let mounted = true;
+
+    // Initialize auth state
+    const initializeAuth = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) throw error;
+
+        if (mounted) {
+          setState({
+            user: session?.user ?? null,
+            session,
+            loading: false,
+            initialized: true
+          });
+        }
+      } catch (error: any) {
+        console.error("Auth initialization error:", error);
+        if (mounted) {
+          setState({
+            user: null,
+            session: null,
+            loading: false,
+            initialized: true
+          });
+        }
+      }
+    };
+
+    // Set up auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        console.log("Auth state changed:", event);
+        if (mounted) {
+          setState(prev => ({
+            ...prev,
+            user: session?.user ?? null,
+            session,
+            loading: false,
+            initialized: true
+          }));
+        }
+      }
+    );
+
+    initializeAuth();
+
+    // Cleanup timeout to prevent infinite loading
+    const timeoutId = setTimeout(() => {
+      if (mounted) {
+        setState(prev => ({
+          ...prev,
+          loading: false,
+          initialized: true
+        }));
+      }
+    }, 5000);
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+      clearTimeout(timeoutId);
+    };
+  }, []);
+
+  const signOut = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      
+      toast({
+        title: "Signed Out",
+        description: "You have been successfully signed out",
+      });
+    } catch (error: any) {
+      console.error("Sign out error:", error);
+      toast({
+        title: "Sign Out Error",
+        description: "There was a problem signing you out. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        loading,
-        error,
-        hasHousehold,
-        refreshHouseholdStatus
-      }}
-    >
+    <AuthContext.Provider value={{ ...state, signOut }}>
       {children}
     </AuthContext.Provider>
   );
