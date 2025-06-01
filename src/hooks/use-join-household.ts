@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/hooks/use-auth";
+import { useHousehold } from "@/hooks/use-household";
 import { householdService } from "@/services/household";
 import { validateInviteCode, normalizeInviteCode } from "@/utils/household";
 
@@ -25,7 +26,8 @@ export function useJoinHousehold() {
   
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { user, refreshHouseholdStatus } = useAuth();
+  const { user } = useAuth();
+  const { refreshHouseholdStatus } = useHousehold();
 
   const setInviteCode = (code: string) => {
     setState(prev => ({
@@ -108,7 +110,7 @@ export function useJoinHousehold() {
         error: null
       }));
       
-      // Refresh the household status in the auth context
+      // Refresh the household status in the household context
       await refreshHouseholdStatus();
       
       toast({

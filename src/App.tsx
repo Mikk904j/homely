@@ -8,6 +8,7 @@ import { AuthProvider } from "./hooks/use-auth";
 import { HouseholdProvider } from "./hooks/use-household";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 import { AppShell } from "./components/AppShell";
+import { AppErrorBoundary } from "./components/ui/app-error-boundary";
 import { AnimatePresence, motion } from "framer-motion";
 import { useState } from "react";
 import Index from "./pages/Index";
@@ -123,19 +124,21 @@ const AppContent = () => {
 };
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <HouseholdProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <AppContent />
-          </BrowserRouter>
-        </TooltipProvider>
-      </HouseholdProvider>
-    </AuthProvider>
-  </QueryClientProvider>
+  <AppErrorBoundary>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <HouseholdProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <AppContent />
+            </BrowserRouter>
+          </TooltipProvider>
+        </HouseholdProvider>
+      </AuthProvider>
+    </QueryClientProvider>
+  </AppErrorBoundary>
 );
 
 export default App;

@@ -3,7 +3,7 @@ import { ReactNode } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/use-auth";
 import { useHousehold } from "@/hooks/use-household";
-import { Loading } from "@/components/ui/loading";
+import { GlobalLoading } from "@/components/ui/global-loading";
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -17,7 +17,7 @@ export const ProtectedRoute = ({ children, requireHousehold = true }: ProtectedR
 
   // Show loading while auth is initializing
   if (!initialized || authLoading) {
-    return <Loading fullScreen text="Checking authentication..." />;
+    return <GlobalLoading message="Checking authentication..." />;
   }
 
   // Redirect to auth if no user
@@ -27,7 +27,7 @@ export const ProtectedRoute = ({ children, requireHousehold = true }: ProtectedR
 
   // Show loading while checking household status
   if (requireHousehold && householdLoading) {
-    return <Loading fullScreen text="Checking household status..." />;
+    return <GlobalLoading message="Checking household status..." />;
   }
 
   // Redirect to household setup if required but not present
