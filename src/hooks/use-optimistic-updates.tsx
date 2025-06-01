@@ -91,7 +91,7 @@ export function useOptimisticCreate<TData, TVariables>({
   });
 }
 
-export function useOptimisticUpdate<TData, TVariables>({
+export function useOptimisticEdit<TData, TVariables>({
   queryKey,
   mutationFn,
   updateCache,

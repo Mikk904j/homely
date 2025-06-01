@@ -1,7 +1,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { AlertTriangle, Clock, Ticket, ShoppingCart } from "lucide-react";
+import { AlertTriangle, Clock, Ticket, ShoppingCart, Calendar as CalendarIcon } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 
 export interface DashboardStats {
@@ -11,11 +11,12 @@ export interface DashboardStats {
   totalTickets: number;
   activeShoppingLists: number;
   totalMembers: number;
+  upcomingEvents: number;
 }
 
 export interface RecentActivity {
   id: string;
-  type: 'ticket' | 'shopping';
+  type: 'ticket' | 'shopping' | 'calendar';
   title: string;
   status: string;
   time: string;
