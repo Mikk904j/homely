@@ -144,23 +144,41 @@ export async function getCurrentUserHousehold(): Promise<HouseholdData | null> {
 /**
  * Check if the current user belongs to any household
  * Returns true if they do, false otherwise
+ * Uses the new simplified security definer function
  */
 export async function checkUserHasHousehold(): Promise<boolean> {
   try {
-    // Use a simpler query to avoid RLS recursion
-    const { count, error } = await supabase
-      .from('member_households')
-      .select('*', { count: 'exact', head: true })
-      .limit(1);
+    // Get current user
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      console.log("No authenticated user found");
+      return false;
+    }
+
+    // Use the new security definer function to check membership
+    const { data, error } = await supabase
+      .rpc('check_user_household_membership', { user_uuid: user.id });
 
     if (error) {
       console.error("Error checking household membership:", error);
-      throw new Error(`Failed to check your household membership: ${error.message}`);
+      // On error, fallback to direct query
+      const { count, error: fallbackError } = await supabase
+        .from('member_households')
+        .select('*', { count: 'exact', head: true })
+        .limit(1);
+
+      if (fallbackError) {
+        console.error("Fallback query also failed:", fallbackError);
+        return false;
+      }
+
+      return count ? count > 0 : false;
     }
 
-    return count ? count > 0 : false;
+    return Boolean(data);
   } catch (error: any) {
     console.error("Error in checkUserHasHousehold:", error);
-    throw error;
+    return false;
   }
 }

@@ -138,15 +138,11 @@ export function useCreateHousehold() {
         error: null
       }));
       
-      // Add longer delay before refreshing household status to ensure database consistency
+      // Refresh household status after a short delay
       setTimeout(async () => {
         try {
-          // Try up to 3 times with increasing delays
-          for (let i = 0; i < 3; i++) {
-            await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
-            await refreshHouseholdStatus();
-            console.log(`Household status refresh attempt ${i + 1} completed`);
-          }
+          await refreshHouseholdStatus();
+          console.log("Household status refreshed after creation");
         } catch (refreshError) {
           console.error("Failed to refresh household status:", refreshError);
         }
@@ -159,14 +155,14 @@ export function useCreateHousehold() {
     } catch (error: any) {
       console.error("Household creation failed:", error);
       
-      // Enhanced error handling with more specific messages
       let errorMessage = error.message || "Failed to create household. Please try again.";
       
+      // Enhanced error handling
       if (errorMessage.includes("violates row level security")) {
-        errorMessage = "You don't have permission to create a household. Please check your account status.";
+        errorMessage = "Permission error. Please try logging out and back in.";
       } else if (errorMessage.includes("duplicate key")) {
         errorMessage = "A household with this name already exists. Please try a different name.";
-      } else if (errorMessage.includes("network error")) {
+      } else if (errorMessage.includes("network")) {
         errorMessage = "Network error. Please check your connection and try again.";
       }
       

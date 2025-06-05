@@ -110,8 +110,15 @@ export function useJoinHousehold() {
         error: null
       }));
       
-      // Refresh the household status in the household context
-      await refreshHouseholdStatus();
+      // Refresh the household status
+      setTimeout(async () => {
+        try {
+          await refreshHouseholdStatus();
+          console.log("Household status refreshed after joining");
+        } catch (refreshError) {
+          console.error("Failed to refresh household status:", refreshError);
+        }
+      }, 1000);
       
       toast({
         title: "Success!",

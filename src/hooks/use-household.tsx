@@ -50,29 +50,14 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
     } catch (error: any) {
       console.error("Error loading household status:", error);
       
-      // Handle RLS policy errors gracefully
-      if (error.message?.includes("infinite recursion") || 
-          error.message?.includes("Failed to check your household membership")) {
-        setState({
-          hasHousehold: false,
-          loading: false,
-          error: null
-        });
-      } else {
-        setState({
-          hasHousehold: false,
-          loading: false,
-          error: error.message || "Failed to check household status"
-        });
-        
-        toast({
-          title: "Connection issue",
-          description: "Couldn't verify household status. Please try refreshing.",
-          variant: "destructive",
-        });
-      }
+      // Default to false on any error to prevent infinite loading
+      setState({
+        hasHousehold: false,
+        loading: false,
+        error: null // Don't show error to avoid confusing users
+      });
     }
-  }, [user, toast]);
+  }, [user]);
 
   // Load household status when auth is initialized and user changes
   useEffect(() => {
@@ -82,7 +67,37 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
   }, [initialized, user, loadHouseholdStatus]);
 
   const refreshHouseholdStatus = async (): Promise<void> => {
-    await loadHouseholdStatus();
+    if (!user) return;
+    
+    try {
+      setState(prev => ({ ...prev, loading: true, error: null }));
+      console.log("Manually refreshing household status for user:", user.id);
+      
+      // Add small delay for database consistency
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      const hasHousehold = await checkUserHasHousehold();
+      console.log("Manual refresh result:", hasHousehold);
+      
+      setState({
+        hasHousehold,
+        loading: false,
+        error: null
+      });
+    } catch (error: any) {
+      console.error("Error refreshing household status:", error);
+      setState({
+        hasHousehold: false,
+        loading: false,
+        error: null // Don't show error to avoid confusing users
+      });
+      
+      toast({
+        title: "Unable to verify household status",
+        description: "Please try refreshing the page if issues persist.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
