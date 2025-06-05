@@ -138,15 +138,9 @@ export function useCreateHousehold() {
         error: null
       }));
       
-      // Refresh household status after a short delay
-      setTimeout(async () => {
-        try {
-          await refreshHouseholdStatus();
-          console.log("Household status refreshed after creation");
-        } catch (refreshError) {
-          console.error("Failed to refresh household status:", refreshError);
-        }
-      }, 1000);
+      // Refresh household status immediately
+      await refreshHouseholdStatus();
+      console.log("Household status refreshed after creation");
       
       toast({
         title: "Success!",

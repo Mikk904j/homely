@@ -73,9 +73,6 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
       setState(prev => ({ ...prev, loading: true, error: null }));
       console.log("Manually refreshing household status for user:", user.id);
       
-      // Add small delay for database consistency
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
       const hasHousehold = await checkUserHasHousehold();
       console.log("Manual refresh result:", hasHousehold);
       

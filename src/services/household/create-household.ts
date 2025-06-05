@@ -40,14 +40,13 @@ export async function createHousehold({
     const householdId = household.id;
     console.log("Household created with ID:", householdId);
     
-    // Add the user as an admin member with created_by field
+    // Add the user as an admin member
     const { error: memberError } = await supabase
       .from("member_households")
       .insert({
         user_id: userId,
         household_id: householdId,
-        role: "admin",
-        created_by: userId,
+        role: "admin"
       });
 
     if (memberError) {
