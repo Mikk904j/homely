@@ -8,10 +8,9 @@ import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { AuthProvider } from "./hooks/use-auth";
 import { HouseholdProvider } from "./hooks/use-household";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
-import { AppShell } from "./components/AppShell";
+import { AppLayout } from "./components/layout/AppLayout";
 import { AppErrorBoundary } from "./components/ui/app-error-boundary";
 import { AnimatePresence, motion } from "framer-motion";
-import { useState } from "react";
 import Index from "./pages/Index";
 import Shopping from "./pages/Shopping";
 import Calendar from "./pages/Calendar";
@@ -24,20 +23,26 @@ import NotFound from "./pages/NotFound";
 
 const AppContent = () => {
   const location = useLocation();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // Routes that don't need the AppShell
+  // Routes that don't need the AppLayout
   const authRoutes = ["/auth", "/household-setup"];
   const isAuthRoute = authRoutes.includes(location.pathname);
+
+  const pageVariants = {
+    initial: { opacity: 0, y: 20 },
+    animate: { opacity: 1, y: 0 },
+    exit: { opacity: 0, y: -20 }
+  };
 
   const routes = (
     <AnimatePresence mode="wait">
       <motion.div
         key={location.pathname}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.2 }}
+        initial="initial"
+        animate="animate"
+        exit="exit"
+        variants={pageVariants}
+        transition={{ duration: 0.3 }}
       >
         <Routes>
           <Route
@@ -104,13 +109,17 @@ const AppContent = () => {
   );
 
   if (isAuthRoute) {
-    return routes;
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
+        {routes}
+      </div>
+    );
   }
 
   return (
-    <AppShell sidebarOpen={sidebarOpen} onSidebarOpenChange={setSidebarOpen}>
+    <AppLayout>
       {routes}
-    </AppShell>
+    </AppLayout>
   );
 };
 
