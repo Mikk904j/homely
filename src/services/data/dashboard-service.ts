@@ -15,7 +15,7 @@ class DashboardService extends BaseDataService {
         supabase.from('tickets').select('id, priority, status'),
         supabase.from('shopping_lists').select('id, status'),
         supabase.from('profiles').select('id'),
-        supabase.from('calendar_events').select('id, start_date').gte('start_date', new Date().toISOString())
+        supabase.from('calendar_events').select('id, start_time').gte('start_time', new Date().toISOString())
       ]);
 
       // Handle potential errors gracefully
@@ -98,7 +98,7 @@ class DashboardService extends BaseDataService {
           type: 'calendar' as const,
           title: event.title,
           status: 'Upcoming',
-          time: new Date(event.start_date).toLocaleString(),
+          time: new Date(event.start_time).toLocaleString(),
           icon: CalendarIcon,
           iconClass: 'text-purple-500',
           description: event.description?.substring(0, 60) + (event.description?.length > 60 ? '...' : '')

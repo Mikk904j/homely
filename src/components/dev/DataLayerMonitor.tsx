@@ -27,10 +27,10 @@ export const DataLayerMonitor = () => {
         return 'bg-green-100 text-green-800';
       case 'error':
         return 'bg-red-100 text-red-800';
+      case 'pending':
+        return 'bg-blue-100 text-blue-800';
       case 'loading':
         return 'bg-blue-100 text-blue-800';
-      case 'stale':
-        return 'bg-yellow-100 text-yellow-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -42,10 +42,9 @@ export const DataLayerMonitor = () => {
         return <CheckCircle className="h-4 w-4" />;
       case 'error':
         return <AlertCircle className="h-4 w-4" />;
+      case 'pending':
       case 'loading':
         return <Clock className="h-4 w-4" />;
-      case 'stale':
-        return <Zap className="h-4 w-4" />;
       default:
         return <Database className="h-4 w-4" />;
     }
@@ -54,7 +53,7 @@ export const DataLayerMonitor = () => {
   // Calculate statistics
   const stats = {
     total: queries.length,
-    loading: queries.filter(q => q.state.status === 'loading').length,
+    loading: queries.filter(q => q.state.status === 'pending').length,
     error: queries.filter(q => q.state.status === 'error').length,
     success: queries.filter(q => q.state.status === 'success').length,
     stale: queries.filter(q => q.state.status === 'success' && q.isStale()).length,
@@ -222,7 +221,7 @@ export const DataLayerMonitor = () => {
             </CardHeader>
             <CardContent>
               <ScrollArea className="h-[400px] w-full">
-                {queries.filter(q => q.state.status === 'loading').map((query) => (
+                {queries.filter(q => q.state.status === 'pending').map((query) => (
                   <div key={query.queryHash} className="border rounded-lg p-4 mb-2">
                     <code className="text-sm">{JSON.stringify(query.queryKey)}</code>
                   </div>

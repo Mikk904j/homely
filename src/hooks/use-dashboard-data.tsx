@@ -30,7 +30,7 @@ export const useDashboardData = () => {
 
   const fetchDashboardStats = async (): Promise<DashboardStats> => {
     try {
-      const [ticketsResponse, shoppingResponse, membersResponse] = await Promise.all([
+      const [ticketsResponse, shoppingResponse, membersResponse, eventsResponse] = await Promise.all([
         supabase
           .from('tickets')
           .select('id, priority, status'),
@@ -39,16 +39,22 @@ export const useDashboardData = () => {
           .select('id, status'),
         supabase
           .from('profiles')
-          .select('id')
+          .select('id'),
+        supabase
+          .from('calendar_events')
+          .select('id, start_time')
+          .gte('start_time', new Date().toISOString())
       ]);
 
       if (ticketsResponse.error) throw ticketsResponse.error;
       if (shoppingResponse.error) throw shoppingResponse.error;
       if (membersResponse.error) throw membersResponse.error;
+      if (eventsResponse.error) throw eventsResponse.error;
 
       const tickets = ticketsResponse.data || [];
       const shoppingLists = shoppingResponse.data || [];
       const members = membersResponse.data || [];
+      const events = eventsResponse.data || [];
 
       return {
         highPriorityTickets: tickets.filter(t => t.priority === 'high' && t.status === 'open').length,
@@ -56,7 +62,8 @@ export const useDashboardData = () => {
         completedTickets: tickets.filter(t => t.status === 'completed').length,
         totalTickets: tickets.length,
         activeShoppingLists: shoppingLists.filter(l => l.status === 'active').length,
-        totalMembers: members.length
+        totalMembers: members.length,
+        upcomingEvents: events.length
       };
     } catch (error: any) {
       console.error("Error fetching dashboard stats:", error);
@@ -73,7 +80,8 @@ export const useDashboardData = () => {
         completedTickets: 0,
         totalTickets: 0,
         activeShoppingLists: 0,
-        totalMembers: 0
+        totalMembers: 0,
+        upcomingEvents: 0
       };
     }
   };
@@ -171,7 +179,8 @@ export const useDashboardData = () => {
       completedTickets: 0,
       totalTickets: 0,
       activeShoppingLists: 0,
-      totalMembers: 0
+      totalMembers: 0,
+      upcomingEvents: 0
     },
     recentActivity: recentActivity || [],
     isLoading: statsLoading || activityLoading,
