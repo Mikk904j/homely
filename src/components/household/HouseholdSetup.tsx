@@ -5,44 +5,54 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/use-auth";
+import { useHousehold } from "@/hooks/use-household";
+import { householdService } from "@/services/household";
 
 export const HouseholdSetup = () => {
   const [householdName, setHouseholdName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { refreshHouseholdStatus } = useHousehold();
 
   const handleCreateHousehold = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!user) {
+      toast({
+        title: "Authentication Error",
+        description: "You must be logged in to create a household",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!householdName.trim()) {
+      toast({
+        title: "Input Required",
+        description: "Please enter a household name",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
+      console.log("Creating household with user ID:", user.id);
+      
+      const result = await householdService.createHousehold({
+        name: householdName.trim(),
+        userId: user.id
+      });
+      
+      console.log("Household created successfully:", result);
 
-      // Create household
-      const { data: household, error: householdError } = await supabase
-        .from("households")
-        .insert({
-          name: householdName,
-          created_by: user.id,
-        })
-        .select()
-        .single();
-
-      if (householdError) throw householdError;
-
-      // Add user as admin member
-      const { error: memberError } = await supabase
-        .from("member_households")
-        .insert({
-          user_id: user.id,
-          household_id: household.id,
-          role: "admin",
-        });
-
-      if (memberError) throw memberError;
+      // Refresh household status immediately
+      await refreshHouseholdStatus();
+      console.log("Household status refreshed after creation");
 
       toast({
         title: "Success",
@@ -51,9 +61,22 @@ export const HouseholdSetup = () => {
 
       navigate("/");
     } catch (error: any) {
+      console.error("Household creation failed:", error);
+      
+      let errorMessage = error.message || "Failed to create household. Please try again.";
+      
+      // Enhanced error handling
+      if (errorMessage.includes("violates row level security")) {
+        errorMessage = "Permission error. Please try logging out and back in.";
+      } else if (errorMessage.includes("duplicate key")) {
+        errorMessage = "A household with this name already exists. Please try a different name.";
+      } else if (errorMessage.includes("network")) {
+        errorMessage = "Network error. Please check your connection and try again.";
+      }
+
       toast({
         title: "Error",
-        description: error.message,
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -76,9 +99,11 @@ export const HouseholdSetup = () => {
               onChange={(e) => setHouseholdName(e.target.value)}
               placeholder="Enter household name"
               required
+              disabled={isLoading}
+              maxLength={50}
             />
           </div>
-          <Button type="submit" className="w-full" disabled={isLoading}>
+          <Button type="submit" className="w-full" disabled={isLoading || !householdName.trim()}>
             {isLoading ? "Creating..." : "Create Household"}
           </Button>
         </form>
